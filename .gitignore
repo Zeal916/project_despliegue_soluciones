@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
+mlruns/
+# datos: los versiona DVC, no Git
+/data/raw/*
+!/data/raw/.gitkeep
