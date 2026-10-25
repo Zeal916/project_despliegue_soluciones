@@ -7,3 +7,4 @@ mlruns/
 # datos: los versiona DVC, no Git
 /data/raw/*
 !/data/raw/.gitkeep
+mlflow_data/

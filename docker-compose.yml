@@ -1,0 +1,31 @@
+# Uso actual:  docker compose up -d mlflow      -> MLflow en http://localhost:5000
+# api y dashboard quedan en el perfil "app" hasta que existan app/api.py y app/dashboard.py
+x-base: &base
+  build: { context: ., dockerfile: docker/Dockerfile }
+  volumes: [ "./data:/app/data" ]
+
+services:
+  mlflow:
+    <<: *base
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+    ports: [ "5000:5000" ]
+    volumes: [ "./mlflow_data:/mlflow" ]
+
+  api:
+    <<: *base
+    profiles: [ app ]
+    command: uvicorn app.api:app --host 0.0.0.0 --port 8000
+    environment: { MLFLOW_TRACKING_URI: "http://mlflow:5000" }
+    ports: [ "8000:8000" ]
+    depends_on: [ mlflow ]
+
+  dashboard:
+    <<: *base
+    profiles: [ app ]
+    command: streamlit run app/dashboard.py --server.port 8501 --server.address 0.0.0.0
+    environment: { API_URL: "http://api:8000" }
+    ports: [ "8501:8501" ]
+    depends_on: [ api ]

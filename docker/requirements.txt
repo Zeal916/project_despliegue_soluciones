@@ -1,0 +1,8 @@
+pandas>=2.2
+scikit-learn>=1.5
+lightgbm>=4.5
+mlflow>=2.16
+fastapi>=0.115
+uvicorn>=0.30
+streamlit>=1.38
+requests>=2.32
