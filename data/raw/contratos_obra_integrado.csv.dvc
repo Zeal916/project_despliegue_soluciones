@@ -1,0 +1,5 @@
+outs:
+- md5: 587b7f387c365607b20d0763ca35ab71
+  size: 21491373
+  hash: md5
+  path: contratos_obra_integrado.csv

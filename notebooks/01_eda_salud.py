@@ -29,8 +29,15 @@ num = lambda s: pd.to_numeric(s, errors="coerce")
 
 c = pd.read_csv(RAW / INPUT, low_memory=False)
 a = pd.read_csv(RAW / "adiciones_valor.csv")
-SMALL = len(c) < 50_000   # con muestras pequeñas se bajan los umbrales mínimos de tamaño
-MIN_DEP, MIN_ENT, N_DEC = (15, 5, 5) if SMALL else (500, 200, 10)
+if TAG == "obra":   # SECOP Integrado: se renombran las columnas al esquema de Contratos Electrónicos
+    c = c.rename(columns={"numero_del_contrato": "id_contrato", "fecha_de_firma_del_contrato": "fecha_de_firma",
+                          "valor_contrato": "valor_del_contrato", "departamento_entidad": "departamento",
+                          "modalidad_de_contrataci_n": "modalidad_de_contratacion", "nombre_de_la_entidad": "nombre_entidad",
+                          "estado_del_proceso": "estado_contrato", "nivel_entidad": "orden", "tipo_documento_proveedor": "tipodocproveedor",
+                          "fecha_inicio_ejecuci_n": "fecha_de_inicio_del_contrato", "fecha_fin_ejecuci_n": "fecha_de_fin_del_contrato"})
+    PRORROGA = set(pd.read_csv(RAW / "adic_senal_prorroga.csv", usecols=["id_contrato"]).id_contrato)  # señal aproximada (texto)
+SMALL = len(c) < 5_000   # con muestras pequeñas se bajan los umbrales mínimos de tamaño
+MIN_DEP, MIN_ENT, N_DEC = (15, 5, 5) if SMALL else ((50, 30, 10) if len(c) < 200_000 else (500, 200, 10))
 print(TAG, INPUT, c.shape, a.shape, "| muestra pequeña:", SMALL)
 
 # %% [markdown]
@@ -40,16 +47,19 @@ print(TAG, INPUT, c.shape, a.shape, "| muestra pequeña:", SMALL)
 c["fecha_firma"] = pd.to_datetime(c.fecha_de_firma, errors="coerce")
 c["anio"], c["mes"] = c.fecha_firma.dt.year.astype("Int64"), c.fecha_firma.dt.month.astype("Int64")
 c["valor"] = num(c.valor_del_contrato)
-dur = c.duraci_n_del_contrato.str.extract(r"(\d+)\s*([A-Za-z])")
-mult = {"D": 1, "M": 30, "A": 365, "S": 7, "H": 1 / 24}
-c["plazo_dias"] = num(dur[0]) * dur[1].map(mult)
-c["saldo_cdp_n"] = num(c.saldo_cdp)
+if TAG == "obra":
+    c["plazo_dias"] = (pd.to_datetime(c.fecha_de_fin_del_contrato, errors="coerce") - pd.to_datetime(c.fecha_de_inicio_del_contrato, errors="coerce")).dt.days
+else:
+    dur = c.duraci_n_del_contrato.str.extract(r"(\d+)\s*([A-Za-z])")
+    mult = {"D": 1, "M": 30, "A": 365, "S": 7, "H": 1 / 24}
+    c["plazo_dias"] = num(dur[0]) * dur[1].map(mult)
+    c["saldo_cdp_n"] = num(c.saldo_cdp)
 
 n_adic = a.groupby("id_contrato").size()
 c["n_adic_valor"] = c.id_contrato.map(n_adic).fillna(0).astype(int)
-c["dias_adic"] = num(c.dias_adicionados).fillna(0)
+c["dias_adic"] = num(c.dias_adicionados).fillna(0) if "dias_adicionados" in c else 0
 c["y_valor"] = (c.n_adic_valor > 0).astype(int)
-c["y_tiempo"] = (c.dias_adic > 0).astype(int)
+c["y_tiempo"] = (c.id_contrato.isin(PRORROGA) if TAG == "obra" else c.dias_adic > 0).astype(int)  # obra: señal aproximada por texto de la descripción
 c["y"] = (c.y_valor | c.y_tiempo).astype(int)
 
 print("Contratos sin fecha de firma válida:", c.fecha_firma.isna().sum())
@@ -79,7 +89,7 @@ firma_vars = ["valor", "plazo_dias", "modalidad_de_contratacion", "tipo_de_contr
               "condiciones_de_entrega", "tipodocproveedor", "es_pyme", "habilita_pago_adelantado", "codigo_proveedor",
               "fecha_de_inicio_del_contrato", "saldo_cdp_n", "justificacion_modalidad_de"]
 undef = lambda s: s.isna() | s.astype(str).str.strip().str.lower().isin(["no definido", "no definida", "sin descripcion", "nan", "no d"])
-nul = pd.Series({v: undef(df[v]).mean() for v in firma_vars}).sort_values()
+nul = pd.Series({v: undef(df[v]).mean() for v in firma_vars if v in df}).sort_values()
 print((nul * 100).round(1).to_string())
 nul.plot.barh(figsize=(7, 4.5), title="Proporción nula o 'No definido'"); plt.tight_layout(); plt.savefig(FIG / "02_nulos.png", dpi=150); plt.show()
 print("Ofertas, garantías y proveedores (tablas aparte) no se descargaron en esta muestra: ver limitaciones.")
@@ -174,16 +184,17 @@ def auc_cat(x, y, k=5):
         oof[te] = x.iloc[te].map(rate).fillna(y.iloc[tr].mean()).values
     return roc_auc_score(y, oof)
 
-df["ultima_act_ts"] = pd.to_datetime(df.ultima_actualizacion, errors="coerce").astype("int64") / 1e9
-df.loc[df.ultima_actualizacion.isna(), "ultima_act_ts"] = np.nan
-df["saldo_vig_n"] = num(df.saldo_vigencia)
+if "ultima_actualizacion" in df:
+    df["ultima_act_ts"] = pd.to_datetime(df.ultima_actualizacion, errors="coerce").astype("int64") / 1e9
+    df.loc[df.ultima_actualizacion.isna(), "ultima_act_ts"] = np.nan
+    df["saldo_vig_n"] = num(df.saldo_vigencia)
 res = []
-for v in ["valor", "plazo_dias", "saldo_cdp_n", "mes"]:
+for v in [v for v in ["valor", "plazo_dias", "saldo_cdp_n", "mes"] if v in df]:
     res.append((v, "firma", auc_num(df[v], df.y)))
-for v in ["modalidad_de_contratacion", "tipo_de_contrato", "departamento", "nombre_entidad", "origen_de_los_recursos",
-          "condiciones_de_entrega", "tipodocproveedor", "es_pyme", "orden"]:
+for v in [v for v in ["modalidad_de_contratacion", "tipo_de_contrato", "departamento", "nombre_entidad", "origen_de_los_recursos",
+          "condiciones_de_entrega", "tipodocproveedor", "es_pyme", "orden"] if v in df and df[v].nunique() > 1]:
     res.append((v, "firma", auc_cat(df[v], df.y)))
-for v in ["saldo_vig_n", "ultima_act_ts", "dias_adic"]:
+for v in [v for v in ["saldo_vig_n", "ultima_act_ts", "dias_adic"] if v in df and df[v].nunique() > 1]:
     res.append((v, "SOSPECHOSA (posterior a la firma)", auc_num(df[v], df.y)))
 res.append(("estado_contrato", "SOSPECHOSA (depende del desenlace)", auc_cat(df.estado_contrato, df.y)))
 leak = pd.DataFrame(res, columns=["variable", "momento", "auc_univariada"]).sort_values("auc_univariada", ascending=False)
