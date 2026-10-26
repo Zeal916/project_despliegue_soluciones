@@ -1,0 +1,8 @@
+Consulta: 2026-10-26 02:04:53 UTC
+id         tabla                               filas  última modificación en origen (UTC)
+jbjy-vk9h  Contratos electrónicos              1,000  2026-10-26 01:14
+p6dx-8zbt  Procesos de contratación        9,377,332  2026-10-24 19:49
+cb9c-h8sn  Adiciones                       8,399,389  2026-10-25 06:28
+gjp9-cutm  Garantías                       7,136,175  2026-10-25 12:22
+qmzu-gj57  Proveedores registrados         1,627,308  2026-10-25 13:05
+wi7w-2nvm  Ofertas por proceso            51,236,830  2026-10-25 15:18

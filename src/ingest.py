@@ -1,6 +1,7 @@
 """Descarga SECOP II (Socrata, datos.gov.co): contratos de Salud desde 2017 y sus adiciones en valor.
 
 Uso: python src/ingest.py [--limit N]   (N solo para pruebas)
+     python src/ingest.py --snapshot       (instantánea de la tabla de contratos tal como está hoy, sin filtro de sector; sin adiciones)
 Solo stdlib. Opcional: SOCRATA_APP_TOKEN en el entorno para evitar throttling.
 Excluye PII (nombres, documentos, cuentas) y variables de ejecución (fuga de información).
 """
@@ -63,8 +64,14 @@ def fetch(dataset, cols, where, dest, limit=None):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int)
+    ap.add_argument("--snapshot", action="store_true")
     a = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
+    if a.snapshot:
+        from datetime import datetime, timezone
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%MZ")
+        fetch(CONTRATOS, CONTRATOS_COLS, "1=1", OUT / f"contratos_snapshot_{stamp}.csv", a.limit)
+        raise SystemExit
     fetch(CONTRATOS, CONTRATOS_COLS, "sector like 'Salud%' AND fecha_de_firma>='2017-01-01'",
           OUT / "contratos_salud.csv", a.limit)
     fetch(ADICIONES, ADICIONES_COLS, "tipo='Adicion en el valor'", OUT / "adiciones_valor.csv", a.limit)

@@ -4,32 +4,41 @@
 # (devuelve 1.000 filas desde el 24-oct-2026). Este EDA se hace con la descarga previa del sector Salud
 # (`src/ingest.py`, 800.011 contratos firmados desde 2017) y sigue la tabla de 9 revisiones del reporte.
 #
+# **Entradas.** El mismo cuaderno se ejecuta con dos entradas, según las variables de entorno `EDA_TAG` y `EDA_INPUT`:
+# `salud` (descarga previa, 800 mil contratos; por defecto) y `snapshot` (instantánea de 1.000 filas de la tabla tal como
+# está hoy, todos los sectores). Con la instantánea, los umbrales de tamaño mínimo se reducen y los resultados son solo indicativos.
+#
 # **Objetivo `y`** = 1 si el contrato registró adición en **valor** (tabla Adiciones, tipo "Adicion en el valor")
 # **o** en **tiempo** (`dias_adicionados > 0`).
 
 # %%
 import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+import os
 from pathlib import Path
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import KFold
 
 ROOT = Path("..")
-RAW, FIG = ROOT / "data/raw", ROOT / "reports/figures"
+TAG = os.environ.get("EDA_TAG", "salud")
+INPUT = os.environ.get("EDA_INPUT", "contratos_salud.csv")
+RAW, FIG = ROOT / "data/raw", ROOT / "reports" / ("figures" if TAG == "salud" else f"figures_{TAG}")
 FIG.mkdir(parents=True, exist_ok=True)
 sns.set_theme(style="whitegrid", context="notebook")
 pd.options.display.float_format = "{:,.3f}".format
 num = lambda s: pd.to_numeric(s, errors="coerce")
 
-c = pd.read_csv(RAW / "contratos_salud.csv", low_memory=False)
+c = pd.read_csv(RAW / INPUT, low_memory=False)
 a = pd.read_csv(RAW / "adiciones_valor.csv")
-print(c.shape, a.shape)
+SMALL = len(c) < 50_000   # con muestras pequeñas se bajan los umbrales mínimos de tamaño
+MIN_DEP, MIN_ENT, N_DEC = (15, 5, 5) if SMALL else (500, 200, 10)
+print(TAG, INPUT, c.shape, a.shape, "| muestra pequeña:", SMALL)
 
 # %% [markdown]
 # ## 0. Construcción de la variable objetivo y variables al momento de la firma
 
 # %%
 c["fecha_firma"] = pd.to_datetime(c.fecha_de_firma, errors="coerce")
-c["anio"], c["mes"] = c.fecha_firma.dt.year, c.fecha_firma.dt.month
+c["anio"], c["mes"] = c.fecha_firma.dt.year.astype("Int64"), c.fecha_firma.dt.month.astype("Int64")
 c["valor"] = num(c.valor_del_contrato)
 dur = c.duraci_n_del_contrato.str.extract(r"(\d+)\s*([A-Za-z])")
 mult = {"D": 1, "M": 30, "A": 365, "S": 7, "H": 1 / 24}
@@ -79,9 +88,9 @@ print("Ofertas, garantías y proveedores (tablas aparte) no se descargaron en es
 # ## 3. Variación por departamento
 
 # %%
-dep = df.groupby("departamento").agg(contratos=("y", "size"), y=("y", "mean")).query("contratos >= 500").sort_values("y")
+dep = df.groupby("departamento").agg(contratos=("y", "size"), y=("y", "mean")).query("contratos >= @MIN_DEP").sort_values("y")
 print(dep.tail(8).to_string()); print(dep.head(5).to_string())
-print(f"Rango de tasa entre departamentos (n>=500): {dep.y.min():.1%} - {dep.y.max():.1%}")
+print(f"Rango de tasa entre departamentos (n>={MIN_DEP}): {dep.y.min():.1%} - {dep.y.max():.1%}")
 dep.y.plot.barh(figsize=(7, 8), title="Tasa de adición por departamento"); plt.tight_layout(); plt.savefig(FIG / "03_departamento.png", dpi=150); plt.show()
 
 # %% [markdown]
@@ -101,7 +110,7 @@ plt.tight_layout(); plt.savefig(FIG / "04_modalidad.png", dpi=150); plt.show()
 
 # %%
 d5 = df[(df.valor > 0) & (df.plazo_dias > 0) & (df.plazo_dias <= 3650)].copy()
-d5["dec_valor"] = pd.qcut(d5.valor, 10, labels=False, duplicates="drop") + 1
+d5["dec_valor"] = pd.qcut(d5.valor, N_DEC, labels=False, duplicates="drop") + 1
 d5["bin_plazo"] = pd.cut(d5.plazo_dias, [0, 30, 90, 180, 365, 730, 3650], labels=["≤30", "31-90", "91-180", "181-365", "366-730", ">730"])
 rate_v = d5.groupby("dec_valor").y.mean()
 print(rate_v.round(3).to_string())
@@ -128,14 +137,15 @@ print(f"Mes con mayor/menor tasa: {mes.y.idxmax()} ({mes.y.max():.1%}) / {mes.y.
 # %%
 ent = df.groupby("nombre_entidad").agg(contratos=("y", "size"), adic=("y", "sum"), y=("y", "mean")).sort_values("adic", ascending=False)
 ent["acum"] = ent.adic.cumsum() / ent.adic.sum()
-print(f"Entidades: {len(ent):,}. Top 10 concentran {ent.acum.iloc[9]:.1%} de los contratos con adición; top 100: {ent.acum.iloc[99]:.1%}")
+print(f"Entidades: {len(ent):,}. Top 10 concentran {ent.acum.iloc[min(9, len(ent) - 1)]:.1%} de los contratos con adición; top 100: {ent.acum.iloc[min(99, len(ent) - 1)]:.1%}")
 print(ent.head(10)[["contratos", "adic", "y"]].to_string())
-big = ent[ent.contratos >= 200]
-print(f"Entidades con >=200 contratos: {len(big)}. Tasa p10/p50/p90: {big.y.quantile([.1, .5, .9]).round(3).tolist()}")
+big = ent[ent.contratos >= MIN_ENT]
+print(f"Entidades con >={MIN_ENT} contratos: {len(big)}. Tasa p10/p50/p90: {big.y.quantile([.1, .5, .9]).round(3).tolist()}")
 fig, ax = plt.subplots(1, 2, figsize=(11, 4))
 ax[0].plot(range(1, len(ent) + 1), ent.acum.values); ax[0].set_xscale("log"); ax[0].set_title("Curva de concentración (entidades)")
 ax[0].set_xlabel("n.º de entidades"); ax[0].set_ylabel("% acumulado de adiciones")
-big.y.hist(bins=30, ax=ax[1]); ax[1].set_title("Tasa de adición por entidad (n≥200)")
+if len(big): big.y.hist(bins=30, ax=ax[1])
+ax[1].set_title(f"Tasa de adición por entidad (n≥{MIN_ENT})")
 plt.tight_layout(); plt.savefig(FIG / "07_entidades.png", dpi=150); plt.show()
 
 # %% [markdown]
