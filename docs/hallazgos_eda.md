@@ -2,7 +2,7 @@
 
 Cuaderno: `notebooks/01_eda_salud.ipynb` · Figuras: `reports/figures/` · Fecha: 2026-10-25
 
-**Contexto de datos.** La tabla `SECOP II – Contratos Electrónicos` (jbjy-vk9h) quedó fuera de servicio en origen
+**Contexto de datos.** La tabla `SECOP II – Contratos Electrónicos` (jbjy-vk9h) quedó truncada en origen
 (1.000 filas desde el 24-oct-2026; las demás tablas siguen completas). El EDA usa la descarga previa del sector Salud:
 800.011 contratos firmados desde 2017 (667.817 entre 2017 y 2025 tras excluir 2026). Los hallazgos de obra quedan
 pendientes hasta que la fuente se recupere; el cuaderno cambia de sector con un filtro.

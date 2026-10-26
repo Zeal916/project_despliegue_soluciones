@@ -1,6 +1,6 @@
 # %% [markdown]
 # # EDA – Riesgo de adiciones en contratos SECOP II (muestra Salud)
-# **Contexto:** la tabla `SECOP II – Contratos Electrónicos` (jbjy-vk9h) quedó fuera de servicio en origen
+# **Contexto:** la tabla `SECOP II – Contratos Electrónicos` (jbjy-vk9h) quedó truncada en origen
 # (devuelve 1.000 filas desde el 24-oct-2026). Este EDA se hace con la descarga previa del sector Salud
 # (`src/ingest.py`, 800.011 contratos firmados desde 2017) y sigue la tabla de 9 revisiones del reporte.
 #
