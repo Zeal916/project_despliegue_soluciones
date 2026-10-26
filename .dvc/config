@@ -1,0 +1,5 @@
+[core]
+    analytics = false
+    remote = origin
+['remote "origin"']
+    url = https://dagshub.com/Zeal916/project_despliegue_soluciones.dvc

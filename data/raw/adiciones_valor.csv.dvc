@@ -1,0 +1,5 @@
+outs:
+- md5: 74bbeb10af6f90e4ecaaf159fa816ded
+  size: 21384521
+  hash: md5
+  path: adiciones_valor.csv

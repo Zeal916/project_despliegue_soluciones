@@ -5,6 +5,5 @@ __pycache__/
 .env
 mlruns/
 # datos: los versiona DVC, no Git
-/data/raw/*
-!/data/raw/.gitkeep
+/data/raw/*.csv
 mlflow_data/
