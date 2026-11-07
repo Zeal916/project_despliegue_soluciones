@@ -9,7 +9,9 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
 2. Cobertura de los cruces:
    1. Procesos de Contratación (p6dx-8zbt): 100 %.
    2. Proveedores Registrados (qmzu-gj57): 66,6 %; faltan sobre todo personas jurídicas.
-   3. Ofertas por Proceso (wi7w-2nvm): 69,2 % de los contratos de 2025; la tabla no cubre años anteriores.
+   3. Ofertas por Proceso (bpan-xvj3, b28v-edj8 y wi7w-2nvm, una tabla por periodo de registro): 71,3 % de los
+      contratos y oferta ganadora en el 62,4 %. Los faltantes son contratación directa y régimen especial, que no
+      reciben ofertas; en las modalidades competitivas la cobertura va de 93 % a 98 %.
    4. Garantías (gjp9-cutm): 1,1 %; la tabla publicada tiene 48.949 pólizas en total.
 3. Variable objetivo: `y = 1` si el contrato aparece en Adiciones (cb9c-h8sn) con tipo "Adicion en el valor" o si
    `dias_adicionados > 0`. Tasa de 36,4 %: 10,5 % en valor y 28,3 % en tiempo.
@@ -19,10 +21,10 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
 | # | Revisión | Hallazgo | Cambio sugerido al mockup | Elemento |
 | --- | --- | --- | --- | --- |
 | 1 | Balance de clases | 36,4 % (valor 10,5 %, tiempo 28,3 %); 29,7 % a 35,3 % entre 2019 y 2024 y 46,3 % en 2025. | KPI con tasa base y tasa por año; semáforo por percentil de riesgo. | A, H |
-| 2 | Faltantes en variables de firma | Valor inicial 0,25 %, plazo inicial 9,6 %, condiciones de entrega 36,2 %, datos del proveedor 33,4 %. | Plazo, condiciones de entrega y datos del proveedor opcionales en el formulario. | G |
+| 2 | Faltantes en variables de firma | Valor inicial 0,17 %, plazo inicial 9,6 %, condiciones de entrega 36,2 %, datos del proveedor 33,4 %. | Plazo, condiciones de entrega y datos del proveedor opcionales en el formulario. | G |
 | 3 | Departamentos | 18,5 % a 50,6 % (n ≥ 50); Bogotá concentra el 28,7 % de los contratos con 38,6 %. | Barras ordenadas por tasa con n mínimo en lugar de mapa. | B |
 | 4 | Modalidad | Licitación pública 51,8 %, menor cuantía 38,1 %, directa 32,4 %, mínima cuantía 26,1 %; 2 de 9 modalidades con menos de 1.000 contratos. | Agrupar variantes con su modalidad principal y mostrar el n. | C |
-| 5 | Valor y plazo | Tasa de 14,9 % (decil 1) a 54,5 % (decil 10) del valor inicial, Spearman 0,25; plazo inicial 0,13. | Conservar el mapa de calor, construido con valor y plazo del proceso, y añadir la curva por deciles. | D |
+| 5 | Valor y plazo | Tasa de 16,6 % (decil 1) a 55,8 % (decil 10) del valor inicial, Spearman 0,25; plazo inicial 0,13. | Conservar el mapa de calor, construido con valor y plazo previos a la firma, y añadir la curva por deciles. | D |
 | 6 | Mes de firma | Diciembre concentra el 18,2 % de las firmas; noviembre y diciembre tienen más adición en tiempo (31,8 % y 34,1 %) y menos en valor (8,6 % y 7,9 %). | Serie mensual de volumen y tasa por tipo de adición; el mes entra en la lectura sugerida. | E, K |
 | 7 | Entidades | 2.378 entidades; las 10 mayores aportan el 22,8 % de los contratos con adición; tasa de 12,7 % (p10) a 60,8 % (p90) entre entidades con n ≥ 30. | Tabla con n ≥ 30, filtro por entidad y tasa histórica de la entidad. | F, J |
 | 8 | Tiempo frente a valor | P(valor \| tiempo) = 8,5 % y P(tiempo \| valor) = 22,8 %; solo 977 contratos tienen ambas. | Dos probabilidades (tiempo y valor) y selector de tipo de adición. | H |
@@ -33,7 +35,9 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
 ## 3. Hallazgos que cambian el diseño del modelo
 
 1. `valor_del_contrato` incluye las adiciones: con adición en valor, la razón mediana frente al valor adjudicado es 1,29 y
-   el percentil 90 es 1,50, igual al tope legal del 50 %. El valor al firmar se toma del precio base del proceso.
+   el percentil 90 es 1,50, igual al tope legal del 50 %. SECOP II no publica el valor firmado: el valor inicial se toma
+   del valor adjudicado (71,7 %), de la oferta ganadora (1,7 %) o del precio base (26,4 %). La oferta ganadora
+   coincide con el adjudicado a ±1 % en el 85,7 % de los casos.
 2. `duraci_n_del_contrato` y `fecha_de_fin_del_contrato` incorporan las prórrogas. El plazo al firmar se toma de la
    duración publicada del proceso.
 3. Filtrar por estado terminado o cerrado reduce la tasa de 36,4 % a 16,9 % porque excluye los contratos "Modificado"
@@ -43,11 +47,12 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
    valor baja de 24,2 % a 7,6 %. Es un cambio en la práctica de registro que afecta la partición temporal.
 5. El 29,0 % de los contratos sin adición registrada supera en más de 5 % su valor adjudicado, lo que indica
    subregistro en la tabla Adiciones.
-6. Las respuestas al proceso (Procesos) coinciden con el conteo de Ofertas por Proceso en el 87,7 % de los contratos de
-   2025 (Spearman 0,994) y cubren todo el periodo, por lo que reemplazan a Ofertas como variable de competencia.
+6. Ofertas por Proceso se publica en tres tablas por periodo; con las tres hay ofertas para 2019 a 2025. El número de
+   proponentes se asocia con más adiciones (32,8 % con uno y 43,9 % con más de 10) y ordena los procesos casi igual
+   que las respuestas de Procesos (Spearman 0,95).
 7. La primera póliza se crea, en mediana, 302 días después de la firma y la tabla cubre el 1,1 % de los contratos.
    Garantías queda fuera del modelo mientras siga incompleta.
-8. Los montos por fuente de recursos también incluyen las adiciones (mediana de 1,16 frente al valor inicial con
+8. Los montos por fuente de recursos también incluyen las adiciones (mediana de 1,28 frente al valor inicial con
    adición en valor). Solo se usa la fuente principal como categoría.
 
 ## 4. Contraste con el estado del arte
@@ -68,7 +73,7 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
 
 1. Modelo combinado y dos modelos por tipo de adición (tiempo y valor).
 2. Variables: valor inicial (logaritmo), plazo inicial, modalidad agrupada, departamento, entidad, mes de firma,
-   respuestas al proceso, adjudicado sobre precio base, días entre publicación y adjudicación, segmento UNSPSC, fuente
+   respuestas al proceso, proponentes, valor inicial sobre precio base, días entre publicación y adjudicación, segmento UNSPSC, fuente
    principal, destino del gasto, condiciones de entrega, experiencia de la entidad, proveedor repetido, antigüedad del
    proveedor, pyme y tipo de documento, con indicadores de faltante.
 3. Exclusiones: `estado_contrato`, `valor_del_contrato`, `duraci_n_del_contrato`, `fecha_de_fin_del_contrato`,
@@ -84,7 +89,7 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
 2. Cambio en el registro de días adicionados a lo largo del periodo.
 3. Proveedores cubre dos tercios de los contratos y Garantías casi ninguno.
 4. La adición es un indicador: no se conoce el monto adicionado.
-5. Para el 6 % de los contratos que comparten proceso, el precio base corresponde a todo el proceso y no solo al
-   contrato.
+5. Para el 6 % de los contratos que comparten proceso, el valor adjudicado y el precio base pueden corresponder a todo
+   el proceso y no solo al contrato.
 6. La fecha de inicio puede registrarse después de la firma; los días entre firma e inicio solo se usan si se confirma
    que se conocen al firmar.

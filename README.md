@@ -24,7 +24,8 @@ Conjuntos abiertos de SECOP II en datos.gov.co:
 
 1. Contratos Electrónicos (jbjy-vk9h)
 2. Procesos de Contratación (p6dx-8zbt)
-3. Ofertas por Proceso (wi7w-2nvm)
+3. Ofertas por Proceso, en tres tablas por año de registro: bpan-xvj3 (hasta 2022), b28v-edj8 (2023-2024) y
+   wi7w-2nvm (2025-2026)
 4. Garantías (gjp9-cutm)
 5. Proveedores Registrados (qmzu-gj57)
 6. Adiciones (cb9c-h8sn)
