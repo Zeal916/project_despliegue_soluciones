@@ -1,0 +1,5 @@
+outs:
+- md5: 0f67ad0b5783237cb172099071a9c946
+  size: 1244682
+  hash: md5
+  path: proveedores_obra.csv

@@ -1,0 +1,5 @@
+outs:
+- md5: 8e4440da50201ca62a82c44e9dd32b48
+  size: 130594
+  hash: md5
+  path: ofertas_obra.csv

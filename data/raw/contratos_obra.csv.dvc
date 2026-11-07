@@ -1,0 +1,5 @@
+outs:
+- md5: 5069ed6b02898ecd0530d7989266c4d2
+  size: 20801696
+  hash: md5
+  path: contratos_obra.csv
