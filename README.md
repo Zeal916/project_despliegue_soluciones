@@ -36,6 +36,6 @@ Conjuntos abiertos de SECOP II en datos.gov.co:
    `git clone https://github.com/Zeal916/project_despliegue_soluciones.git`
 2. Obtener los datos con `dvc pull` (requiere credenciales de DagsHub) o descargarlos de nuevo con
    `python src/ingest.py` (varios minutos; `--limit 200` para una prueba rápida).
-3. Ejecutar el EDA con Python 3.11 o superior, pandas, scikit-learn, matplotlib y seaborn:
+3. Instalar el entorno del EDA (Python 3.11 o superior) con `pip install -r requirements-eda.txt` y ejecutar:
    `jupyter nbconvert --to notebook --execute --inplace notebooks/01_eda_obra.ipynb`
 4. Levantar MLflow con `docker compose up -d mlflow` y abrir http://localhost:5000.
