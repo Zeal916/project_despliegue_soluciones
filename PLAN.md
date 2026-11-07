@@ -44,7 +44,12 @@ resumen de hallazgos (ver `docs/hallazgos_eda.md`).
 - [x] Capturas/enlaces de repos Git y DVC como soporte
 
 ## Fase 2 – Entrega 2 (sem 4–5)
-Pipeline de features, split temporal, baselines (logística, RF, LightGBM/XGBoost), MLflow, tablero con datos reales.
+- [x] Tabla de modelado (`src/features.py`) y modelos (`src/modelo.py`): logística, Random Forest, LightGBM y CatBoost
+- [x] Validación temporal 2022-2024, búsqueda corta, selección de variables y prueba en 2025 (`notebooks/02_modelos.ipynb`)
+- [x] Recalibración, explicaciones SHAP y guía para MLflow y el tablero (`docs/modelos.md`)
+- [ ] Experimentos registrados en MLflow (EC2) y confirmación de la selección
+- [ ] Tablero con datos reales y predicciones del modelo
+- [ ] Reporte de 10 páginas y reporte de trabajo en equipo
 
 ## Fase 3 – Entrega 3 (sem 6–8)
 Empaquetado del modelo, API FastAPI (`/predict`, `/health`), contenedores, despliegue, manuales, video ≤10 min.

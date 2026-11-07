@@ -10,11 +10,16 @@ la DIARI de la Contraloría General de la República y las veedurías prioricen 
 | --- | --- |
 | `src/ingest.py` | Descarga de las 6 fuentes de SECOP II para contratos de obra firmados entre 2019 y 2025 |
 | `src/check_source.py` | Estado de las 6 tablas en datos.gov.co (filas y última actualización) |
+| `src/features.py` | Tabla de modelado: un contrato por fila con las variables conocidas al firmar |
+| `src/modelo.py` | Modelos, validación temporal, métricas, recalibración, `predecir` y `explicar` |
 | `notebooks/01_eda_obra.ipynb` | Exploración de los datos |
+| `notebooks/02_modelos.ipynb` | Comparación de cuatro modelos, selección, prueba en 2025 e interpretabilidad |
+| `docs/modelos.md` | Guía de uso de los modelos para MLflow y el tablero |
 | `docs/hallazgos_eda.md` | Hallazgos del EDA, revisiones del mockup e implicaciones para el modelado |
 | `docs/evidencia/` | Registro de la indisponibilidad de Contratos Electrónicos en octubre de 2026 |
 | `reports/figures/` | Figuras que genera el notebook |
 | `data/raw/*.dvc` | Punteros DVC de los datos; los CSV están en DagsHub |
+| `data/processed/`, `models/` | Tabla de modelado y modelos entrenados; se regeneran con `src/` (fuera de Git) |
 | `docker/`, `docker-compose.yml` | Entorno con MLflow; la API y el tablero se agregan en las entregas 2 y 3 |
 | `app/` | Reservada para la API y el tablero |
 
@@ -38,4 +43,6 @@ Conjuntos abiertos de SECOP II en datos.gov.co:
    `python src/ingest.py` (varios minutos; `--limit 200` para una prueba rápida).
 3. Instalar el entorno del EDA (Python 3.11 o superior) con `pip install -r requirements-eda.txt` y ejecutar:
    `jupyter nbconvert --to notebook --execute --inplace notebooks/01_eda_obra.ipynb`
-4. Levantar MLflow con `docker compose up -d mlflow` y abrir http://localhost:5000.
+4. Generar la tabla de modelado con `python src/features.py`, guardar los modelos seleccionados con
+   `python src/modelo.py --ganador` y ejecutar `notebooks/02_modelos.ipynb` con el Jupyter del mismo entorno.
+5. Levantar MLflow con `docker compose up -d mlflow` y abrir http://localhost:5000.
