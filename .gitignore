@@ -7,3 +7,5 @@ mlruns/
 # datos: los versiona DVC, no Git
 /data/raw/*.csv
 mlflow_data/
+# instrucciones y reportes de auditoría para Antigravity (uso local)
+agents/
