@@ -1,4 +1,4 @@
-# Entorno para la ingesta y el EDA (versiones con las que se ejecutó el notebook)
+# Entorno para la ingesta, el EDA y los modelos (versiones probadas)
 pandas==2.3.3
 numpy==2.3.5
 matplotlib==3.10.9
@@ -7,3 +7,6 @@ scikit-learn==1.8.0
 nbconvert==7.17.1
 ipykernel==7.2.0
 dvc==3.67.1
+lightgbm==4.6.0
+catboost==1.2.10
+joblib==1.5.3

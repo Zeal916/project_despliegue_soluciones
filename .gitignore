@@ -9,3 +9,6 @@ mlruns/
 mlflow_data/
 # instrucciones y reportes de auditoría para Antigravity (uso local)
 agents/
+# tabla de modelado y modelos entrenados: se regeneran con src/
+/data/processed/
+/models/
