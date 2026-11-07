@@ -38,10 +38,14 @@ SEMILLA = 42
 PLIEGUES = [2022, 2023, 2024]  # validación con ventana creciente
 PRUEBA = 2025
 MODELOS = ["logistica", "random_forest", "lightgbm", "catboost"]
-# Regla: mayor PR-AUC medio en PLIEGUES; si la diferencia es menor que la
-# variación entre años, gana el más simple. Se confirma con las corridas
-# registradas en MLflow; si cambia, se edita esta línea y se corre --ganador.
-GANADOR = {"modelo": "logistica", "params": {"C": 0.01}}
+# Regla: mayor PR-AUC medio en PLIEGUES; entre los modelos cuya diferencia
+# con el mejor es menor que la variación entre años, gana el de mayor
+# precisión en 100 (capacidad de revisión). fuente_principal se excluye por
+# aporte nulo y riesgo de fuga. Se confirma con las corridas registradas en
+# MLflow; si cambia, se edita esta línea y se corre --ganador.
+GANADOR = {"modelo": "catboost",
+           "params": {"depth": 8, "learning_rate": 0.03},
+           "excluir": ["fuente_principal"]}
 REJILLAS = {
     "logistica": {"C": [0.01, 0.1, 1, 10]},
     "random_forest": {"min_samples_leaf": [5, 20, 50],
@@ -140,7 +144,7 @@ def buscar(modelo, objetivo="y", datos=None):
     filas = []
     for params in ParameterGrid(REJILLAS[modelo]):
         m = validar(modelo, objetivo, params, datos=datos)
-        filas.append({**params, **m.mean(),
+        filas.append({**params, "params": params, **m.mean(),
                       "pr_auc_std": m["pr_auc"].std()})
     return pd.DataFrame(filas).sort_values("pr_auc", ascending=False)
 
@@ -240,8 +244,8 @@ if __name__ == "__main__":
         datos = cargar()
         for obj in OBJETIVOS:
             pipe, metricas = entrenar(GANADOR["modelo"], obj,
-                                      GANADOR["params"], evalua=PRUEBA,
-                                      datos=datos)
+                                      GANADOR["params"], GANADOR["excluir"],
+                                      evalua=PRUEBA, datos=datos)
             print(obj, json.dumps(metricas, indent=2))
             print("Guardado en", guardar(pipe, obj))
         raise SystemExit
