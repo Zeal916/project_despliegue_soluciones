@@ -1,44 +1,69 @@
-# Hallazgos del EDA (muestra Salud, 2017–2025)
+# Hallazgos del EDA: contratos de obra en SECOP II (2019 a 2025)
 
-Cuaderno: `notebooks/01_eda_salud.ipynb` · Figuras: `reports/figures/` · Fecha: 2026-10-25
+Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos: `src/ingest.py`, descarga del
+7 de noviembre de 2026, versionados con DVC.
 
-**Contexto de datos.** La tabla `SECOP II – Contratos Electrónicos` (jbjy-vk9h) quedó truncada en origen
-(1.000 filas desde el 24-oct-2026; las demás tablas siguen completas). El EDA usa la descarga previa del sector Salud:
-800.011 contratos firmados desde 2017 (667.817 entre 2017 y 2025 tras excluir 2026). Los hallazgos de obra quedan
-pendientes hasta que la fuente se recupere; el cuaderno cambia de sector con un filtro.
+## 1. Datos
 
-**Objetivo `y`** = adición en valor (tabla Adiciones) **o** en tiempo (`dias_adicionados > 0`).
+1. Universo: 40.621 contratos tipo "Obra" de Contratos Electrónicos (jbjy-vk9h) firmados entre 2019 y 2025.
+2. Cobertura de los cruces:
+   1. Procesos de Contratación (p6dx-8zbt): 100 %.
+   2. Proveedores Registrados (qmzu-gj57): 66,6 %; faltan sobre todo personas jurídicas.
+   3. Ofertas por Proceso (wi7w-2nvm): 69,2 % de los contratos de 2025; la tabla no cubre años anteriores.
+   4. Garantías (gjp9-cutm): 1,1 %; la tabla publicada tiene 48.949 pólizas en total.
+3. Variable objetivo: `y = 1` si el contrato aparece en Adiciones (cb9c-h8sn) con tipo "Adicion en el valor" o si
+   `dias_adicionados > 0`. Tasa de 36,4 %: 10,5 % en valor y 28,3 % en tiempo.
 
-## Respuesta a la tabla de 9 revisiones
+## 2. Revisiones para el mockup
 
-| # | Revisión | Hallazgo | Cambio sugerido al mockup |
-|---|---|---|---|
-| 1 | Tasa global / balance | `y` = **27,1 %** (valor 7,1 %, tiempo 22,0 %). Desbalance moderado, no extremo. Varía mucho por año (20–43 % entre 2018 y 2025). | KPI muestra la tasa base y la tasa por año; semáforo por **percentil de riesgo** (A, H). |
-| 2 | Nulos en variables de firma | Valor, modalidad, tipo y origen sin nulos; `plazo` 11,8 %, `pago adelantado` 12,7 %, `condiciones de entrega` 22,6 % "No definido". Ofertas, garantías y proveedores aún no descargados. | Marcar plazo y condiciones de entrega como **opcionales** en el formulario (G). |
-| 3 | Departamentos | Tasa entre 9 % y 40 %, pero **Bogotá concentra 297 mil de 668 mil contratos** y tiene la tasa más alta (40 %). | Mapa poco informativo; usar **barras de departamentos con n ≥ 500** y nota de concentración (B). |
-| 4 | Modalidad | Dominan *régimen especial* (446 mil contratos, tasa 31 %) y *contratación directa* (192 mil, tasa 18 %). 6 de 13 categorías tienen < 1.000 contratos. | **Agrupar** modalidades pequeñas en "Otras" y mostrar el n (C). |
-| 5 | Valor y plazo | Relación **creciente con el valor**: 4,6 % (decil 1) a 37 % (decil 9); Spearman 0,22. El plazo pesa menos (0,05), aunque plazos > 365 días suben la tasa en deciles altos. | El mapa de calor es informativo: conservar D, añadir curva por deciles de valor. |
-| 6 | Estacionalidad | Enero–marzo 32–33 %, junio–agosto ~20 %, noviembre 15 %. Patrón **marcado**. | Mantener E y añadir el mes como factor en K. |
-| 7 | Entidades | 633 entidades; **top 10 = 66 % de los contratos con adición**, top 100 = 95 %. Entre entidades con n ≥ 200: p10 1,4 %, mediana 12 %, p90 33 %. Dominan las Subredes de Bogotá. | Priorizar F con mínimo de contratos y filtro por entidad. Riesgo de que el modelo aprenda la entidad. |
-| 8 | Tiempo vs valor | Perfiles distintos: P(valor \| tiempo) = 9 %, P(tiempo \| valor) = 28 %. Tiempo: 22 %; valor: 7 %. Régimen especial 25 % en tiempo, contratación directa 3 % en valor. | **Selector de tipo de adición** y dos probabilidades (H). |
-| 9 | Fuga | `dias_adicionados` (AUC 0,91, es parte del objetivo) y `estado_contrato` (0,89) son **fuga**. `saldo_cdp`, `saldo_vigencia` y `ultima_actualizacion` no tienen señal (≈0,50). `nombre_entidad` 0,76, `departamento` 0,67 y `valor` 0,64 son legítimas pero dependen del contexto. | Excluir estado y días adicionados del modelo y del formulario (G, I). |
+| # | Revisión | Hallazgo | Cambio sugerido al mockup | Elemento |
+| --- | --- | --- | --- | --- |
+| 1 | Balance de clases | 36,4 % (valor 10,5 %, tiempo 28,3 %); 29,7 % a 35,3 % entre 2019 y 2024 y 46,3 % en 2025. | KPI con tasa base y tasa por año; semáforo por percentil de riesgo. | A, H |
+| 2 | Faltantes en variables de firma | Valor inicial 0,2 %, plazo inicial 9,6 %, condiciones de entrega 36,2 %, datos del proveedor 33,4 %. | Plazo, condiciones de entrega y datos del proveedor opcionales en el formulario. | G |
+| 3 | Departamentos | 18,5 % a 50,6 % (n ≥ 50); Bogotá concentra el 28,7 % de los contratos con 38,6 %. | Barras ordenadas por tasa con n mínimo en lugar de mapa. | B |
+| 4 | Modalidad | Licitación pública 51,8 %, menor cuantía 38,1 %, directa 32,4 %, mínima cuantía 26,1 %; 2 de 9 modalidades con menos de 1.000 contratos. | Agrupar variantes con su modalidad principal y mostrar el n. | C |
+| 5 | Valor y plazo | Tasa de 14,9 % (decil 1) a 54,5 % (decil 10) del valor inicial, Spearman 0,25; plazo inicial 0,13. | Conservar el mapa de calor, construido con valor y plazo del proceso, y añadir la curva por deciles. | D |
+| 6 | Mes de firma | Diciembre concentra el 18,2 % de las firmas; noviembre y diciembre tienen más adición en tiempo (31,8 % y 34,1 %) y menos en valor (8,6 % y 7,9 %). | Serie mensual de volumen y tasa por tipo de adición; el mes entra en la lectura sugerida. | E, K |
+| 7 | Entidades | 2.378 entidades; las 10 mayores aportan el 22,8 % de los contratos con adición; tasa de 12,7 % (p10) a 60,8 % (p90) entre entidades con n ≥ 30. | Tabla con n ≥ 30, filtro por entidad y tasa histórica de la entidad. | F, J |
+| 8 | Tiempo frente a valor | P(valor \| tiempo) = 8,5 % y P(tiempo \| valor) = 22,8 %; solo 977 contratos tienen ambas. | Dos probabilidades (tiempo y valor) y selector de tipo de adición. | H |
+| 9 | Fuga | `estado_contrato` (AUC 0,86), fecha de fin (0,76), valor actual (0,66) y duración del contrato (0,65) son posteriores a la firma. | El formulario pide valor y plazo del proceso y excluye estado y días adicionados. | G, I |
 
-## Hallazgos adicionales que afectan el diseño
+## 3. Hallazgos que cambian el diseño del modelo
 
-1. **El campo de adiciones en tiempo no se diligenciaba antes de 2019:** 0,2 % en 2017–2018, 18,5 % en 2019. Esto respalda
-   el corte de **2019 en adelante** del alcance. Las adiciones en valor muestran un cambio de registro similar: 28–29 %
-   en 2018–2019 y 3–8 % después.
-2. **La tasa no es estable en el tiempo** (picos en 2020 y 2025), así que el split temporal es indispensable y
-   los resultados de validación aleatoria serían optimistas.
-3. **El estado "Modificado" tiene una tasa de 69 %** y depende del desenlace: filtrar la muestra por estado sesga los
-   datos. Recomendación: definir la muestra por fecha de firma.
-4. **Dominio de Bogotá** (44 % de los contratos) y de unas pocas entidades: el modelo puede reducirse a "qué entidad firma".
-   Evaluar con entidades no vistas o reportar métricas excluyendo las 10 mayores.
-5. **14 contratos con `dias_adicionados` > 5 años** (errores de digitación) y valores de contrato extremos
-   (hasta 2·10¹⁴): requieren recorte o transformación logarítmica.
+1. `valor_del_contrato` incluye las adiciones: con adición en valor, la razón mediana frente al valor adjudicado es 1,29 y
+   el percentil 90 es 1,50, igual al tope legal del 50 %. El valor al firmar se toma del precio base del proceso.
+2. `duraci_n_del_contrato` y `fecha_de_fin_del_contrato` incorporan las prórrogas. El plazo al firmar se toma de la
+   duración publicada del proceso.
+3. Filtrar por estado terminado o cerrado reduce la tasa de 36,4 % a 16,9 % porque excluye los contratos "Modificado"
+   (80,6 % de adición). La muestra se define por fecha de firma; solo se excluyen contratos con plazo inicial vigente
+   (4,3 % en 2025 y menos de 1 % en los demás años).
+4. La adición en tiempo sube de 13,5 % (2019) a 41,9 % (2025) dentro de todas las modalidades, mientras la adición en
+   valor baja de 24,2 % a 7,6 %. Es un cambio en la práctica de registro que afecta la partición temporal.
+5. El 29,0 % de los contratos sin adición registrada supera en más de 5 % su valor adjudicado, lo que indica
+   subregistro en la tabla Adiciones.
+6. Las respuestas al proceso (Procesos) coinciden con el conteo de Ofertas por Proceso en el 87,7 % de los contratos de
+   2025 (Spearman 0,994) y cubren todo el periodo, por lo que reemplazan a Ofertas como variable de competencia.
+7. La primera póliza se crea, en mediana, 302 días después de la firma y la tabla cubre el 1,1 % de los contratos.
+   Garantías queda fuera del modelo mientras siga incompleta.
 
-## Limitaciones
-- Muestra de Salud, no de obra (ver contexto).
-- Sin ofertas, garantías ni proveedores todavía (tablas aparte, pendientes de descargar).
-- "Adición" es un conteo/indicador: no se conoce el monto adicionado.
-- Los contratos de 2025 pueden no haber tenido tiempo de recibir adiciones.
+## 4. Implicaciones para el modelado
+
+1. Modelo combinado y dos modelos por tipo de adición (tiempo y valor).
+2. Variables: valor inicial (logaritmo), plazo inicial, modalidad agrupada, departamento, entidad, mes de firma,
+   respuestas al proceso, adjudicado sobre precio base, antigüedad del proveedor, pyme y tipo de documento, con
+   indicadores de faltante.
+3. Exclusiones: `estado_contrato`, `valor_del_contrato`, `duraci_n_del_contrato`, `fecha_de_fin_del_contrato`,
+   `dias_adicionados` y variables de ejecución (pagos, facturación, saldos, última actualización).
+4. Partición temporal: entrenamiento 2019 a 2023, validación 2024 y prueba 2025, con métricas por año y recalibración
+   con el año más reciente.
+5. Entidad codificada por tasa con suavizado dentro de cada pliegue y evaluación con entidades no vistas.
+6. Métricas: PR-AUC y precisión en k, con AUC-ROC como referencia.
+
+## 5. Limitaciones
+
+1. Subregistro probable de la adición en valor.
+2. Cambio en el registro de días adicionados a lo largo del periodo.
+3. Proveedores cubre dos tercios de los contratos y Garantías casi ninguno.
+4. La adición es un indicador: no se conoce el monto adicionado.
+5. Para el 6 % de los contratos que comparten proceso, el precio base corresponde a todo el proceso y no solo al
+   contrato.

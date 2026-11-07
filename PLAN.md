@@ -33,7 +33,7 @@ resumen de hallazgos (ver `docs/hallazgos_eda.md`, por crear).
 - [x] Estructura del repo: `data/ notebooks/ src/ app/ docker/ reports/`
 - [x] `git init`, `.gitignore`, `README`, remoto en GitHub, invitar a los compañeros (README pendiente)
 - [ ] `dvc init` + remoto DVC compartido
-- [x] `src/ingest.py`: descarga vía Socrata (contratos, adiciones, garantías, proveedores), sector Salud, 2017→hoy
+- [x] `src/ingest.py`: descarga vía Socrata de las 6 fuentes SECOP II del alcance, contratos de obra 2019-2025
 - [ ] Dataset base versionado con DVC (`dvc add`), commit y push
 - [x] Dockerfile base de Python + `docker-compose.yml` vacío (api, dashboard, mlflow)
 
