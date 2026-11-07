@@ -7,8 +7,9 @@ Archivos generados en data/raw/:
    (Adiciones, cb9c-h8sn).
 3. procesos_obra.csv: procesos de compra de esos contratos
    (Procesos de Contratación, p6dx-8zbt).
-4. ofertas_obra.csv: ofertas distintas por proceso de los contratos firmados
-   en 2025 (Ofertas por Proceso, wi7w-2nvm, que solo cubre 2025 y 2026).
+4. ofertas_obra.csv: ofertas distintas y valor ofertado por proceso y
+   proveedor (Ofertas por Proceso, publicada en tres tablas por año de
+   registro: bpan-xvj3 hasta 2022, b28v-edj8 2023-2024, wi7w-2nvm 2025-2026).
 5. garantias_obra.csv: pólizas de esos contratos (Garantías, gjp9-cutm).
 6. proveedores_obra.csv: proveedores adjudicatarios
    (Proveedores Registrados, qmzu-gj57).
@@ -75,10 +76,17 @@ PROCESOS_COLS = [
     "numero_de_lotes", "valor_total_adjudicacion",
 ]
 
-OFERTAS = "wi7w-2nvm"
+# Cada tabla se consulta con los contratos firmados en los años que cubre.
+OFERTAS = {
+    "bpan-xvj3": ("2019", "2023"),
+    "b28v-edj8": ("2022", "2025"),
+    "wi7w-2nvm": ("2024", "2025"),
+}
+OFERTAS_GRUPO = "id_del_proceso_de_compra, c_digo_proveedor"
 OFERTAS_COLS = [
-    "id_del_proceso_de_compra",
+    "id_del_proceso_de_compra", "c_digo_proveedor",
     "count(distinct identificador_de_la_oferta) as n_ofertas",
+    "max(valor_de_la_oferta) as valor_oferta",
 ]
 
 GARANTIAS = "gjp9-cutm"
@@ -167,10 +175,6 @@ if __name__ == "__main__":
     guardar(contratos, CONTRATOS_COLS, OUT / "contratos_obra.csv")
     ids = {c["id_contrato"] for c in contratos}
     procesos = {c.get("proceso_de_compra", "") for c in contratos}
-    procesos_2025 = {
-        c.get("proceso_de_compra", "") for c in contratos
-        if c.get("fecha_de_firma", "") >= "2025"
-    }
     proveedores = {c.get("codigo_proveedor", "") for c in contratos}
 
     guardar(query_en_lotes(ADICIONES, ADICIONES_COLS, "id_contrato", ids,
@@ -179,9 +183,16 @@ if __name__ == "__main__":
     guardar(query_en_lotes(PROCESOS, PROCESOS_COLS, "id_del_portafolio",
                            procesos),
             PROCESOS_COLS, OUT / "procesos_obra.csv")
-    guardar(query_en_lotes(OFERTAS, OFERTAS_COLS, "id_del_proceso_de_compra",
-                           procesos_2025, group="id_del_proceso_de_compra"),
-            OFERTAS_COLS, OUT / "ofertas_obra.csv")
+    ofertas = (
+        fila
+        for tabla, (desde, hasta) in OFERTAS.items()
+        for fila in query_en_lotes(
+            tabla, OFERTAS_COLS, "id_del_proceso_de_compra",
+            {c.get("proceso_de_compra", "") for c in contratos
+             if desde <= c.get("fecha_de_firma", "")[:4] <= hasta},
+            group=OFERTAS_GRUPO)
+    )
+    guardar(ofertas, OFERTAS_COLS, OUT / "ofertas_obra.csv")
     guardar(query_en_lotes(GARANTIAS, GARANTIAS_COLS, "id_contrato", ids),
             GARANTIAS_COLS, OUT / "garantias_obra.csv")
     guardar(query_en_lotes(PROVEEDORES, PROVEEDORES_COLS, "codigo",
