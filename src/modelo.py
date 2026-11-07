@@ -6,7 +6,9 @@ métricas, listos para mlflow.log_params, mlflow.log_metrics y log_model.
 Uso:
     python src/modelo.py --modelo lightgbm --objetivo y
     python src/modelo.py --modelo catboost --param depth=8 --excluir mes
-    python src/modelo.py --modelo lightgbm --final --guardar
+    python src/modelo.py --modelo logistica --param C=0.01 --validar
+    python src/modelo.py --modelo lightgbm --evalua 2025 --guardar
+    python src/modelo.py --ganador
 """
 import argparse
 import json
@@ -15,6 +17,7 @@ from functools import lru_cache
 import joblib
 import numpy as np
 import pandas as pd
+import shap
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
 from sklearn.compose import ColumnTransformer
@@ -32,8 +35,13 @@ from features import (CATEGORICAS, ENTIDAD, NUMERICAS, OBJETIVOS, RAIZ,
 
 MODELOS_DIR = RAIZ / "models"
 SEMILLA = 42
-FIN_ENTRENA, VALIDA, PRUEBA = 2023, 2024, 2025
+PLIEGUES = [2022, 2023, 2024]  # validación con ventana creciente
+PRUEBA = 2025
 MODELOS = ["logistica", "random_forest", "lightgbm", "catboost"]
+# Regla: mayor PR-AUC medio en PLIEGUES; si la diferencia es menor que la
+# variación entre años, gana el más simple. Se confirma con las corridas
+# registradas en MLflow; si cambia, se edita esta línea y se corre --ganador.
+GANADOR = {"modelo": "logistica", "params": {"C": 0.01}}
 REJILLAS = {
     "logistica": {"C": [0.01, 0.1, 1, 10]},
     "random_forest": {"min_samples_leaf": [5, 20, 50],
@@ -102,15 +110,14 @@ def evaluar(y, p):
 
 
 def entrenar(modelo="lightgbm", objetivo="y", params=None, excluir=(),
-             final=False, datos=None):
-    """Entrena con 2019-2023 y evalúa en 2024.
+             evalua=2024, datos=None):
+    """Entrena con los años anteriores a `evalua` y evalúa en ese año.
 
-    Con final=True entrena con 2019-2024 y evalúa en 2025 (prueba).
+    evalua=2025 es la prueba final: entrena con 2019-2024.
     Devuelve el pipeline ajustado y las métricas del año evaluado.
     """
     datos = cargar() if datos is None else datos
-    hasta, evalua = (VALIDA, PRUEBA) if final else (FIN_ENTRENA, VALIDA)
-    tr = datos[datos["anio"] <= hasta]
+    tr = datos[datos["anio"] < evalua]
     te = datos[datos["anio"] == evalua]
     pipe = pipeline(modelo, params, excluir)
     pipe.fit(tr[VARIABLES], tr[objetivo])
@@ -118,12 +125,23 @@ def entrenar(modelo="lightgbm", objetivo="y", params=None, excluir=(),
     return pipe, evaluar(te[objetivo], p)
 
 
-def buscar(modelo, objetivo="y", datos=None):
-    """Búsqueda corta en REJILLAS, ordenada por PR-AUC en 2024."""
+def validar(modelo="lightgbm", objetivo="y", params=None, excluir=(),
+            datos=None):
+    """Validación temporal con ventana creciente: métricas por pliegue."""
     datos = cargar() if datos is None else datos
-    filas = [{**params, **entrenar(modelo, objetivo, params,
-                                   datos=datos)[1]}
-             for params in ParameterGrid(REJILLAS[modelo])]
+    return pd.DataFrame(
+        [entrenar(modelo, objetivo, params, excluir, a, datos)[1]
+         for a in PLIEGUES], index=pd.Index(PLIEGUES, name="evalua"))
+
+
+def buscar(modelo, objetivo="y", datos=None):
+    """Búsqueda corta en REJILLAS, ordenada por PR-AUC medio en PLIEGUES."""
+    datos = cargar() if datos is None else datos
+    filas = []
+    for params in ParameterGrid(REJILLAS[modelo]):
+        m = validar(modelo, objetivo, params, datos=datos)
+        filas.append({**params, **m.mean(),
+                      "pr_auc_std": m["pr_auc"].std()})
     return pd.DataFrame(filas).sort_values("pr_auc", ascending=False)
 
 
@@ -139,11 +157,11 @@ def _modelo_guardado(objetivo):
     return joblib.load(MODELOS_DIR / f"modelo_{objetivo}.joblib")
 
 
-def predecir(registros, objetivo="y"):
-    """Probabilidad de adición para un contrato (dict) o varios (DataFrame).
+def preparar(registros):
+    """Registros (dict o DataFrame) con las columnas y tipos del modelo.
 
-    Las variables ausentes se tratan como faltantes. Si llega valor_inicial
-    en pesos y no su logaritmo, se calcula aquí.
+    Las variables ausentes quedan como faltantes. Si llega valor_inicial en
+    pesos y no su logaritmo, se calcula aquí.
     """
     if isinstance(registros, dict):
         registros = [registros]
@@ -155,7 +173,42 @@ def predecir(registros, objetivo="y"):
     X[NUMERICAS] = X[NUMERICAS].apply(pd.to_numeric, errors="coerce")
     for c in ENTIDAD + CATEGORICAS:
         X[c] = a_texto(X[c])
+    return X
+
+
+def predecir(registros, objetivo="y"):
+    """Probabilidad de adición para un contrato (dict) o varios."""
+    X = preparar(registros)
     return _modelo_guardado(objetivo).predict_proba(X)[:, 1]
+
+
+def _variable_original(columna):
+    """'cat__modalidad_Directa' -> 'modalidad'."""
+    base = columna.split("__", 1)[1].removeprefix("missingindicator_")
+    return next(v for v in VARIABLES
+                if base == v or base.startswith(v + "_"))
+
+
+def aportes(pipe, X, fondo):
+    """Valores SHAP por contrato agrupados por variable original.
+
+    `fondo` es una muestra de contratos de referencia (100 a 500 filas).
+    Para la logística los aportes están en log-odds; para los árboles, en
+    la escala de salida del modelo. El signo indica si sube o baja el riesgo.
+    """
+    prep, clf = pipe["prep"], pipe["clf"]
+    explicador = shap.Explainer(clf, prep.transform(preparar(fondo)))
+    valores = explicador(prep.transform(preparar(X))).values
+    if valores.ndim == 3:  # una columna por clase: se toma la clase 1
+        valores = valores[..., 1]
+    columnas = [_variable_original(c) for c in prep.get_feature_names_out()]
+    return pd.DataFrame(valores, columns=columnas).T.groupby(level=0).sum().T
+
+
+def explicar(registro, fondo, objetivo="y", n=5):
+    """Las n variables que más mueven el riesgo de un contrato (panel I)."""
+    a = aportes(_modelo_guardado(objetivo), registro, fondo).iloc[0]
+    return a.reindex(a.abs().sort_values(ascending=False).index[:n])
 
 
 def _valor(texto):
@@ -168,20 +221,39 @@ def _valor(texto):
 
 if __name__ == "__main__":
     a = argparse.ArgumentParser(description="Entrena y evalúa un modelo.")
-    a.add_argument("--modelo", choices=MODELOS, default="lightgbm")
+    a.add_argument("--modelo", choices=MODELOS, default=GANADOR["modelo"])
     a.add_argument("--objetivo", choices=OBJETIVOS, default="y")
     a.add_argument("--param", action="append", default=[],
                    metavar="CLAVE=VALOR", help="hiperparámetro, repetible")
     a.add_argument("--excluir", nargs="*", default=[], metavar="VARIABLE")
-    a.add_argument("--final", action="store_true",
-                   help="entrena 2019-2024 y evalúa en 2025")
+    a.add_argument("--evalua", type=int, default=2024,
+                   help="año evaluado; 2025 entrena con 2019-2024 (prueba)")
+    a.add_argument("--validar", action="store_true",
+                   help="métricas por pliegue temporal (2022 a 2024)")
     a.add_argument("--guardar", action="store_true",
                    help="guarda el pipeline en models/")
+    a.add_argument("--ganador", action="store_true",
+                   help="entrena GANADOR con 2019-2024 para los tres "
+                        "objetivos, evalúa en 2025 y guarda los modelos")
     args = a.parse_args()
+    if args.ganador:
+        datos = cargar()
+        for obj in OBJETIVOS:
+            pipe, metricas = entrenar(GANADOR["modelo"], obj,
+                                      GANADOR["params"], evalua=PRUEBA,
+                                      datos=datos)
+            print(obj, json.dumps(metricas, indent=2))
+            print("Guardado en", guardar(pipe, obj))
+        raise SystemExit
     params = dict(p.split("=", 1) for p in args.param)
     params = {k: _valor(v) for k, v in params.items()}
+    if args.validar:
+        m = validar(args.modelo, args.objetivo, params, args.excluir)
+        print(m.round(4).to_string())
+        print(m.mean().round(4).to_string())
+        raise SystemExit
     pipe, metricas = entrenar(args.modelo, args.objetivo, params,
-                              args.excluir, args.final)
+                              args.excluir, args.evalua)
     print(json.dumps(metricas, indent=2))
     if args.guardar:
         print("Guardado en", guardar(pipe, args.objetivo))
