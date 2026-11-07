@@ -15,20 +15,22 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
    4. Garantías (gjp9-cutm): 1,1 %; la tabla publicada tiene 48.949 pólizas en total.
 3. Variable objetivo: `y = 1` si el contrato aparece en Adiciones (cb9c-h8sn) con tipo "Adicion en el valor" o si
    `dias_adicionados > 0`. Tasa de 36,4 %: 10,5 % en valor y 28,3 % en tiempo.
+4. Definición ampliada de la adición en valor: registro en Adiciones o, en procesos de un solo contrato, valor actual
+   más de 5 % sobre el valor inicial. Con ella la adición en valor es 30,6 % y la tasa total 47,4 %.
 
 ## 2. Revisiones para el mockup
 
 | # | Revisión | Hallazgo | Cambio sugerido al mockup | Elemento |
 | --- | --- | --- | --- | --- |
 | 1 | Balance de clases | 36,4 % (valor 10,5 %, tiempo 28,3 %); 29,7 % a 35,3 % entre 2019 y 2024 y 46,3 % en 2025. | KPI con tasa base y tasa por año; semáforo por percentil de riesgo. | A, H |
-| 2 | Faltantes en variables de firma | Valor inicial 0,17 %, plazo inicial 9,6 %, condiciones de entrega 36,2 %, datos del proveedor 33,4 %. | Plazo, condiciones de entrega y datos del proveedor opcionales en el formulario. | G |
+| 2 | Faltantes en variables de firma | Valor inicial 0,17 %, plazo inicial 9,6 %, condiciones de entrega 36,2 %, datos del proveedor 33,4 %. Sin tipo de documento del proveedor la tasa sube a 47,6 % (35,8 % con dato). | Plazo, condiciones de entrega y datos del proveedor opcionales en el formulario; el faltante se informa al modelo. | G |
 | 3 | Departamentos | 18,5 % a 50,6 % (n ≥ 50); Bogotá concentra el 28,7 % de los contratos con 38,6 %. | Barras ordenadas por tasa con n mínimo en lugar de mapa. | B |
 | 4 | Modalidad | Licitación pública 51,8 %, menor cuantía 38,1 %, directa 32,4 %, mínima cuantía 26,1 %; 2 de 9 modalidades con menos de 1.000 contratos. | Agrupar variantes con su modalidad principal y mostrar el n. | C |
 | 5 | Valor y plazo | Tasa de 16,6 % (decil 1) a 55,8 % (decil 10) del valor inicial, Spearman 0,25; plazo inicial 0,13. | Conservar el mapa de calor, construido con valor y plazo previos a la firma, y añadir la curva por deciles. | D |
 | 6 | Mes de firma | Diciembre concentra el 18,2 % de las firmas; noviembre y diciembre tienen más adición en tiempo (31,8 % y 34,1 %) y menos en valor (8,6 % y 7,9 %). | Serie mensual de volumen y tasa por tipo de adición; el mes entra en la lectura sugerida. | E, K |
 | 7 | Entidades | 2.378 entidades; las 10 mayores aportan el 22,8 % de los contratos con adición; tasa de 12,7 % (p10) a 60,8 % (p90) entre entidades con n ≥ 30. | Tabla con n ≥ 30, filtro por entidad y tasa histórica de la entidad. | F, J |
 | 8 | Tiempo frente a valor | P(valor \| tiempo) = 8,5 % y P(tiempo \| valor) = 22,8 %; solo 977 contratos tienen ambas. | Dos probabilidades (tiempo y valor) y selector de tipo de adición. | H |
-| 9 | Fuga | `estado_contrato` (AUC 0,86), fecha de fin (0,76), valor actual (0,66) y duración del contrato (0,65) son posteriores a la firma. | El formulario pide valor y plazo del proceso y excluye estado y días adicionados. | G, I |
+| 9 | Fuga | `estado_contrato` (AUC 0,86), fecha de fin (0,76), valor actual (0,66) y duración del contrato (0,65) son posteriores a la firma; la fecha de inicio es posterior a la firma en el 93 % de los contratos. | El formulario pide valor y plazo del proceso y excluye estado, días adicionados y fecha de inicio. | G, I |
 | 10 | Magnitud | Una adición en valor por contrato (mediana); la adición en tiempo equivale al 50 % del plazo inicial (mediana). | KPI de extensión relativa del plazo en lugar de conteo de adiciones. | A |
 | 11 | Objeto y financiación | Crédito (58,0 %) y regalías (44,4 %) superan a SGP (28,2 %); procesos con adición tardan más de publicación a adjudicación (26 frente a 19 días). | Fuente principal y segmento UNSPSC en filtros y formulario; fechas del proceso precargadas por ID. | G, filtros |
 
@@ -45,14 +47,23 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
    (4,3 % en 2025 y menos de 1 % en los demás años).
 4. La adición en tiempo sube de 13,5 % (2019) a 41,9 % (2025) dentro de todas las modalidades, mientras la adición en
    valor baja de 24,2 % a 7,6 %. Es un cambio en la práctica de registro que afecta la partición temporal.
-5. El 29,0 % de los contratos sin adición registrada supera en más de 5 % su valor adjudicado, lo que indica
-   subregistro en la tabla Adiciones.
+5. La tabla Adiciones subregistra la adición en valor. Con la definición ampliada la tasa pasa de 10,5 % a 30,6 % y
+   se vuelve estable entre años (27,1 % a 37,7 %), mientras la registrada cae de 24,2 % en 2019 a 7,6 % en 2025. Una
+   revisión de 200 contratos en Modificaciones a contratos (u8cx-r425), usada solo como validación y fuera de la
+   ingesta, confirmó aumento de valor o texto de adición en el 93 % (con valor adjudicado) y el 95 % (sin él).
 6. Ofertas por Proceso se publica en tres tablas por periodo; con las tres hay ofertas para 2019 a 2025. El número de
    proponentes se asocia con más adiciones (32,8 % con uno y 43,9 % con más de 10) y ordena los procesos casi igual
    que las respuestas de Procesos (Spearman 0,95).
 7. La primera póliza se crea, en mediana, 302 días después de la firma y la tabla cubre el 1,1 % de los contratos.
    Garantías queda fuera del modelo mientras siga incompleta.
-8. Los montos por fuente de recursos también incluyen las adiciones (mediana de 1,28 frente al valor inicial con
+8. La fecha de inicio es posterior a la firma en el 93,0 % de los contratos; los días entre firma e inicio se tratan
+   como variable posterior.
+9. Los contratos en procesos compartidos (6,0 %) tienen más adiciones (44,8 % frente a 35,9 %).
+10. Con partición temporal, el AUC univariado de la entidad baja de 0,67 a 0,64; el 13,3 % de los contratos de 2024 es
+    de entidades sin contratos previos.
+11. Hay redundancia entre respuestas y proponentes (Spearman 0,91) y entre contratos previos del proveedor y proveedor
+    repetido (0,65).
+12. Los montos por fuente de recursos también incluyen las adiciones (mediana de 1,28 frente al valor inicial con
    adición en valor). Solo se usa la fuente principal como categoría.
 
 ## 4. Contraste con el estado del arte
@@ -71,13 +82,14 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
 
 ## 5. Implicaciones para el modelado
 
-1. Modelo combinado y dos modelos por tipo de adición (tiempo y valor).
+1. Variable objetivo: se recomienda la definición ampliada de la adición en valor. Modelo combinado y dos modelos por
+   tipo de adición (tiempo y valor).
 2. Variables: valor inicial (logaritmo), plazo inicial, modalidad agrupada, departamento, entidad, mes de firma,
-   respuestas al proceso, proponentes, valor inicial sobre precio base, días entre publicación y adjudicación, segmento UNSPSC, fuente
+   respuestas al proceso (o proponentes, no ambas), proceso compartido, valor inicial sobre precio base, días entre publicación y adjudicación, segmento UNSPSC, fuente
    principal, destino del gasto, condiciones de entrega, experiencia de la entidad, proveedor repetido, antigüedad del
    proveedor, pyme y tipo de documento, con indicadores de faltante.
 3. Exclusiones: `estado_contrato`, `valor_del_contrato`, `duraci_n_del_contrato`, `fecha_de_fin_del_contrato`,
-   `dias_adicionados`, montos por fuente y variables de ejecución (pagos, facturación, saldos, última actualización).
+   `dias_adicionados`, días entre firma e inicio, montos por fuente y variables de ejecución (pagos, facturación, saldos, última actualización).
 4. Partición temporal: entrenamiento 2019 a 2023, validación 2024 y prueba 2025, con métricas por año y recalibración
    con el año más reciente.
 5. Entidad codificada por tasa con suavizado dentro de cada pliegue y evaluación con entidades no vistas.
@@ -85,11 +97,11 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
 
 ## 6. Limitaciones
 
-1. Subregistro probable de la adición en valor.
+1. Subregistro de la adición en valor en la tabla Adiciones; la definición ampliada lo corrige solo para procesos de
+   un solo contrato.
 2. Cambio en el registro de días adicionados a lo largo del periodo.
 3. Proveedores cubre dos tercios de los contratos y Garantías casi ninguno.
 4. La adición es un indicador: no se conoce el monto adicionado.
 5. Para el 6 % de los contratos que comparten proceso, el valor adjudicado y el precio base pueden corresponder a todo
    el proceso y no solo al contrato.
-6. La fecha de inicio puede registrarse después de la firma; los días entre firma e inicio solo se usan si se confirma
-   que se conocen al firmar.
+6. La evaluación con entidades no vistas es necesaria: el 13,3 % de los contratos de 2024 es de entidades nuevas.
