@@ -15,8 +15,10 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
    4. Garantías (gjp9-cutm): 1,1 %; la tabla publicada tiene 48.949 pólizas en total.
 3. Variable objetivo: `y = 1` si el contrato aparece en Adiciones (cb9c-h8sn) con tipo "Adicion en el valor" o si
    `dias_adicionados > 0`. Tasa de 36,4 %: 10,5 % en valor y 28,3 % en tiempo.
-4. Definición ampliada de la adición en valor: registro en Adiciones o, en procesos de un solo contrato, valor actual
-   más de 5 % sobre el valor inicial. Con ella la adición en valor es 30,6 % y la tasa total 47,4 %.
+4. Decisión del equipo: se usa la definición registrada, que mide el acto legal de adición. Como sensibilidad, una
+   definición ampliada (registro en Adiciones o, en procesos de un solo contrato, valor actual más de 5 % sobre el
+   valor inicial) daría 30,6 % de adición en valor y 47,4 % de tasa total. No se adopta porque el crecimiento del
+   valor también incluye reajustes de precios y correcciones, que legalmente no son adiciones.
 
 ## 2. Revisiones para el mockup
 
@@ -47,8 +49,9 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
    (4,3 % en 2025 y menos de 1 % en los demás años).
 4. La adición en tiempo sube de 13,5 % (2019) a 41,9 % (2025) dentro de todas las modalidades, mientras la adición en
    valor baja de 24,2 % a 7,6 %. Es un cambio en la práctica de registro que afecta la partición temporal.
-5. La tabla Adiciones subregistra la adición en valor. Con la definición ampliada la tasa pasa de 10,5 % a 30,6 % y
-   se vuelve estable entre años (27,1 % a 37,7 %), mientras la registrada cae de 24,2 % en 2019 a 7,6 % en 2025. Una
+5. La tabla Adiciones subregistra la adición en valor. Con la definición ampliada la tasa pasaría de 10,5 % a 30,6 % y
+   sería estable entre años (27,1 % a 37,7 %), mientras la registrada cae de 24,2 % en 2019 a 7,6 % en 2025. El
+   modelo predice adiciones registradas y debe evaluarse por año. Una
    revisión de 200 contratos en Modificaciones a contratos (u8cx-r425), usada solo como validación y fuera de la
    ingesta, confirmó aumento de valor o texto de adición en el 93 % (con valor adjudicado) y el 95 % (sin él).
 6. Ofertas por Proceso se publica en tres tablas por periodo; con las tres hay ofertas para 2019 a 2025. El número de
@@ -82,8 +85,8 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
 
 ## 5. Implicaciones para el modelado
 
-1. Variable objetivo: se recomienda la definición ampliada de la adición en valor. Modelo combinado y dos modelos por
-   tipo de adición (tiempo y valor).
+1. Variable objetivo registrada (acto legal de adición en tiempo o en valor). Modelo combinado y dos modelos por tipo
+   de adición (tiempo y valor).
 2. Variables: valor inicial (logaritmo), plazo inicial, modalidad agrupada, departamento, entidad, mes de firma,
    respuestas al proceso (o proponentes, no ambas), proceso compartido, valor inicial sobre precio base, días entre publicación y adjudicación, segmento UNSPSC, fuente
    principal, destino del gasto, condiciones de entrega, experiencia de la entidad, proveedor repetido, antigüedad del
@@ -97,8 +100,8 @@ Notebook: `notebooks/01_eda_obra.ipynb` · Figuras: `reports/figures/` · Datos:
 
 ## 6. Limitaciones
 
-1. Subregistro de la adición en valor en la tabla Adiciones; la definición ampliada lo corrige solo para procesos de
-   un solo contrato.
+1. Subregistro de la adición en valor en la tabla Adiciones: el modelo estima la probabilidad de una adición
+   registrada como tal, y la tasa real de crecimiento del valor es mayor.
 2. Cambio en el registro de días adicionados a lo largo del periodo.
 3. Proveedores cubre dos tercios de los contratos y Garantías casi ninguno.
 4. La adición es un indicador: no se conoce el monto adicionado.
