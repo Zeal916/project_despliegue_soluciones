@@ -14,7 +14,7 @@ Archivos generados en data/raw/:
    (Proveedores Registrados, qmzu-gj57).
 
 Uso: python src/ingest.py [--limit N]   (N limita los contratos; pruebas)
-Opcional: SOCRATA_APP_TOKEN en el entorno para evitar limitación de peticiones.
+Opcional: SOCRATA_APP_TOKEN en el entorno, para evitar límites de peticiones.
 Se excluyen datos personales: nombres, documentos, cuentas, correos,
 teléfonos y direcciones.
 """
@@ -131,14 +131,17 @@ def query(dataset, select, where, group=None, limit=None):
         offset += size
 
 
-def query_en_lotes(dataset, select, llave, valores, group=None):
+def query_en_lotes(dataset, select, llave, valores, group=None, where=None):
     """Consulta por lotes de LOTE valores de la llave (cláusula IN)."""
     valores = sorted(set(valores) - {""})
     for i in range(0, len(valores), LOTE):
         lista = ", ".join(
             "'{}'".format(v.replace("'", "''")) for v in valores[i:i + LOTE]
         )
-        yield from query(dataset, select, f"{llave} in ({lista})", group)
+        condicion = f"{llave} in ({lista})"
+        if where:
+            condicion = f"{where} AND {condicion}"
+        yield from query(dataset, select, condicion, group)
 
 
 def guardar(filas, select, destino):
@@ -170,9 +173,8 @@ if __name__ == "__main__":
     }
     proveedores = {c.get("codigo_proveedor", "") for c in contratos}
 
-    adiciones = query(ADICIONES, ADICIONES_COLS,
-                      "tipo = 'Adicion en el valor'")
-    guardar((a for a in adiciones if a.get("id_contrato") in ids),
+    guardar(query_en_lotes(ADICIONES, ADICIONES_COLS, "id_contrato", ids,
+                           where="tipo = 'Adicion en el valor'"),
             ADICIONES_COLS, OUT / "adiciones_valor.csv")
     guardar(query_en_lotes(PROCESOS, PROCESOS_COLS, "id_del_portafolio",
                            procesos),
@@ -180,8 +182,7 @@ if __name__ == "__main__":
     guardar(query_en_lotes(OFERTAS, OFERTAS_COLS, "id_del_proceso_de_compra",
                            procesos_2025, group="id_del_proceso_de_compra"),
             OFERTAS_COLS, OUT / "ofertas_obra.csv")
-    garantias = query(GARANTIAS, GARANTIAS_COLS, "1 = 1")
-    guardar((g for g in garantias if g.get("id_contrato") in ids),
+    guardar(query_en_lotes(GARANTIAS, GARANTIAS_COLS, "id_contrato", ids),
             GARANTIAS_COLS, OUT / "garantias_obra.csv")
     guardar(query_en_lotes(PROVEEDORES, PROVEEDORES_COLS, "codigo",
                            proveedores),
