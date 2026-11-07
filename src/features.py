@@ -40,20 +40,21 @@ FUENTES = {
     "recursos_propios": "Propios",
 }
 
+SUAVIZADO = 20  # peso, en contratos, de la tasa global en la de la entidad
 OBJETIVOS = ["y", "y_tiempo", "y_valor"]
 NUMERICAS = [
     "log_valor_inicial", "plazo_inicial", "respuestas",
     "inicial_sobre_base", "dias_publicacion_adjudicacion",
-    "previos_entidad", "antiguedad_prov", "proceso_compartido",
-    "proveedor_repetido",
+    "tasa_entidad", "previos_entidad", "antiguedad_prov",
+    "proceso_compartido", "proveedor_repetido",
 ]
-ENTIDAD = ["nombre_entidad"]
 CATEGORICAS = [
     "modalidad", "departamento", "segmento_unspsc", "fuente_principal",
     "destino_gasto", "condiciones_de_entrega", "es_pyme",
     "tipodocproveedor", "mes",
 ]
-VARIABLES = NUMERICAS + ENTIDAD + CATEGORICAS
+VARIABLES = NUMERICAS + CATEGORICAS
+TEXTO = ["nombre_entidad"] + CATEGORICAS
 
 
 def fecha(serie):
@@ -87,6 +88,31 @@ def previos(firma, grupos):
     """Contratos del mismo grupo firmados en días anteriores (sin empates)."""
     dia = firma.dt.normalize()
     return dia.groupby(grupos).rank(method="min") - 1
+
+
+def tasa_suavizada(historia):
+    """Tasa de adición por entidad, suavizada hacia la tasa de `historia`."""
+    prior = historia["y"].mean()
+    g = historia.groupby("nombre_entidad")["y"].agg(["sum", "count"])
+    return (g["sum"] + SUAVIZADO * prior) / (g["count"] + SUAVIZADO), prior
+
+
+def tasa_entidad(df):
+    """Tasa suavizada de la entidad calculada solo con años anteriores.
+
+    Reemplaza la codificación por tasa con pliegues aleatorios, que usaba
+    desenlaces futuros de la misma entidad dentro del entrenamiento. Los
+    contratos de 2019 no tienen historia y quedan como faltantes.
+    """
+    salida = pd.Series(np.nan, index=df.index)
+    for anio in df["anio"].unique():
+        historia = df[df["anio"] < anio]
+        if historia.empty:
+            continue
+        tasas, prior = tasa_suavizada(historia)
+        fila = df["anio"] == anio
+        salida[fila] = df.loc[fila, "nombre_entidad"].map(tasas).fillna(prior)
+    return salida
 
 
 def cruzar(raw):
@@ -152,10 +178,13 @@ def construir(raw=RAW):
     df["log_valor_inicial"] = np.log10(df["valor_inicial"])
     df["inicial_sobre_base"] = (df["valor_inicial"] / precio_base).where(
         adjudicado.notna() | oferta.notna())
-    df["proceso_compartido"] = df["proceso_de_compra"].duplicated(
-        keep=False).astype(int)
+    # Lote: otro contrato del mismo proceso firmado ese día o antes
+    dia = df["firma"].dt.normalize()
+    df["proceso_compartido"] = (dia.groupby(df["proceso_de_compra"])
+                                .rank(method="max") > 1).astype(int)
 
-    # Entidad, proveedor y competencia (secciones 10 y 12)
+    # Entidad, proveedor y competencia (secciones 10 y 12). Se cuentan antes
+    # de excluir los vigentes: también son experiencia previa al firmar.
     df["previos_entidad"] = previos(df["firma"], df["nombre_entidad"])
     repetidos = previos(df["firma"], [df["nombre_entidad"],
                                       df["codigo_proveedor"]])
@@ -171,31 +200,36 @@ def construir(raw=RAW):
         columns=FUENTES)
     df["fuente_principal"] = montos.idxmax(axis=1).where(
         montos.sum(axis=1) > 0)
+    adjudicacion = fecha(df["fecha_adjudicacion"])
     df["dias_publicacion_adjudicacion"] = (
-        fecha(df["fecha_adjudicacion"]) - df["publicacion"]).dt.days
+        adjudicacion - df["publicacion"]).dt.days.where(
+            adjudicacion.dt.normalize() <= dia)  # adjudicar tras firmar: error
     df["modalidad"] = df["modalidad_de_contratacion"].map(MODALIDADES)
 
     for c in ["departamento", "destino_gasto", "condiciones_de_entrega",
               "es_pyme", "tipodocproveedor"]:
         df[c] = limpiar(df[c])
-    for c in ENTIDAD + CATEGORICAS:
+    for c in TEXTO:
         df[c] = a_texto(df[c])
 
     # Muestra: se excluyen los contratos con plazo inicial vigente (sección 4)
     inicio = fecha(df["fecha_de_inicio_del_contrato"])
     fin_pactado = inicio.fillna(df["firma"]) + pd.to_timedelta(
         df["plazo_inicial"], unit="D")
-    df = df[~(fin_pactado >= FECHA_DESCARGA)]
+    df = df[~(fin_pactado >= FECHA_DESCARGA)].copy()
+    df["tasa_entidad"] = tasa_entidad(df)
 
-    columnas = ["id_contrato", "proceso_de_compra", "firma", "anio",
-                "valor_inicial", "dias_adic"] + OBJETIVOS + VARIABLES
+    # estado_contrato es posterior a la firma: solo para diagnóstico
+    columnas = (["id_contrato", "proceso_de_compra", "firma", "anio",
+                 "nombre_entidad", "valor_inicial", "dias_adic",
+                 "estado_contrato"] + OBJETIVOS + VARIABLES)
     return df[columnas].reset_index(drop=True)
 
 
 def cargar(ruta=SALIDA):
     """Lee la tabla procesada con las categóricas como texto."""
-    tipos = {c: str for c in ENTIDAD + CATEGORICAS}
-    return pd.read_csv(ruta, dtype=tipos, parse_dates=["firma"])
+    return pd.read_csv(ruta, dtype={c: str for c in TEXTO},
+                       parse_dates=["firma"])
 
 
 if __name__ == "__main__":

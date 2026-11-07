@@ -28,24 +28,24 @@ from sklearn.metrics import (average_precision_score, brier_score_loss,
                              roc_auc_score)
 from sklearn.model_selection import ParameterGrid
 from sklearn.pipeline import Pipeline, make_pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, TargetEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from features import (CATEGORICAS, ENTIDAD, NUMERICAS, OBJETIVOS, RAIZ,
-                      VARIABLES, a_texto, cargar)
+from features import (CATEGORICAS, NUMERICAS, OBJETIVOS, RAIZ, VARIABLES,
+                      a_texto, cargar, tasa_suavizada)
 
 MODELOS_DIR = RAIZ / "models"
 SEMILLA = 42
 PLIEGUES = [2022, 2023, 2024]  # validación con ventana creciente
 PRUEBA = 2025
 MODELOS = ["logistica", "random_forest", "lightgbm", "catboost"]
-# Regla: mayor PR-AUC medio en PLIEGUES; entre los modelos cuya diferencia
-# con el mejor es menor que la variación entre años, gana el de mayor
-# precisión en 100 (capacidad de revisión). fuente_principal se excluye por
-# aporte nulo y riesgo de fuga. Se confirma con las corridas registradas en
-# MLflow; si cambia, se edita esta línea y se corre --ganador.
+# Regla: mayor PR-AUC medio en PLIEGUES. Se excluyen fuente_principal por
+# riesgo de fuga (sus montos se actualizan con las adiciones) y las variables
+# sin aporte cuya salida baja el PR-AUC medio menos de 0,005. Se confirma
+# con las corridas de MLflow; si cambia, se edita y se corre --ganador.
 GANADOR = {"modelo": "catboost",
-           "params": {"depth": 8, "learning_rate": 0.03},
-           "excluir": ["fuente_principal"]}
+           "params": {"depth": 6, "learning_rate": 0.03},
+           "excluir": ["fuente_principal", "proveedor_repetido",
+                       "tipodocproveedor", "proceso_compartido"]}
 REJILLAS = {
     "logistica": {"C": [0.01, 0.1, 1, 10]},
     "random_forest": {"min_samples_leaf": [5, 20, 50],
@@ -75,9 +75,9 @@ def clasificador(nombre):
 def pipeline(modelo, params=None, excluir=()):
     """Preprocesamiento común a los cuatro modelos más el clasificador.
 
-    1. Numéricas: mediana, indicador de faltante y escala estándar.
-    2. Entidad: tasa de adición suavizada con validación cruzada interna.
-    3. Categóricas: one-hot; categorías con menos de 50 contratos se agrupan.
+    1. Numéricas, incluida la tasa temporal de la entidad: mediana,
+       indicador de faltante y escala estándar.
+    2. Categóricas: one-hot; categorías con menos de 50 contratos se agrupan.
     """
     def usar(lista):
         return [v for v in lista if v not in excluir]
@@ -86,7 +86,6 @@ def pipeline(modelo, params=None, excluir=()):
         ("num", make_pipeline(
             SimpleImputer(strategy="median", add_indicator=True),
             StandardScaler()), usar(NUMERICAS)),
-        ("ent", TargetEncoder(random_state=SEMILLA), usar(ENTIDAD)),
         ("cat", OneHotEncoder(handle_unknown="infrequent_if_exist",
                               min_frequency=50, sparse_output=False),
          usar(CATEGORICAS)),
@@ -97,7 +96,10 @@ def pipeline(modelo, params=None, excluir=()):
 
 
 def evaluar(y, p):
-    """Métricas de priorización: PR-AUC, precisión en k, AUC y Brier."""
+    """Métricas de priorización: PR-AUC, precisión en k, AUC y Brier.
+
+    Con menos de 100 contratos, precision_100 es la tasa del conjunto.
+    """
     y, p = np.asarray(y), np.asarray(p)
     orden = y[np.argsort(-p, kind="stable")]
     k10 = max(1, round(0.1 * len(y)))
@@ -138,21 +140,46 @@ def validar(modelo="lightgbm", objetivo="y", params=None, excluir=(),
          for a in PLIEGUES], index=pd.Index(PLIEGUES, name="evalua"))
 
 
-def buscar(modelo, objetivo="y", datos=None):
+def buscar(modelo, objetivo="y", excluir=(), datos=None):
     """Búsqueda corta en REJILLAS, ordenada por PR-AUC medio en PLIEGUES."""
     datos = cargar() if datos is None else datos
     filas = []
     for params in ParameterGrid(REJILLAS[modelo]):
-        m = validar(modelo, objetivo, params, datos=datos)
+        m = validar(modelo, objetivo, params, excluir, datos)
         filas.append({**params, "params": params, **m.mean(),
                       "pr_auc_std": m["pr_auc"].std()})
     return pd.DataFrame(filas).sort_values("pr_auc", ascending=False)
 
 
-def guardar(pipe, objetivo="y"):
+def _logit(p):
+    p = np.clip(p, 1e-6, 1 - 1e-6)
+    return np.log(p / (1 - p))
+
+
+def calibrar(modelo, objetivo="y", params=None, excluir=(), datos=None):
+    """Coeficientes de Platt (a, b) ajustados en 2024 fuera de muestra.
+
+    Un modelo entrenado con 2019-2023 predice 2024 y se ajusta
+    y ~ sigmoide(a * logit(p) + b). El orden de los contratos no cambia.
+    """
+    datos = cargar() if datos is None else datos
+    anio = PRUEBA - 1
+    pipe, _ = entrenar(modelo, objetivo, params, excluir, anio, datos)
+    te = datos[datos["anio"] == anio]
+    z = _logit(pipe.predict_proba(te[VARIABLES])[:, 1]).reshape(-1, 1)
+    platt = LogisticRegression(C=1e6).fit(z, te[objetivo])
+    return float(platt.coef_[0, 0]), float(platt.intercept_[0])
+
+
+def recalibrar(p, platt):
+    a, b = platt
+    return 1 / (1 + np.exp(-(a * _logit(p) + b)))
+
+
+def guardar(pipe, objetivo="y", platt=None):
     MODELOS_DIR.mkdir(exist_ok=True)
     ruta = MODELOS_DIR / f"modelo_{objetivo}.joblib"
-    joblib.dump(pipe, ruta)
+    joblib.dump({"pipeline": pipe, "platt": platt}, ruta)
     return ruta
 
 
@@ -161,11 +188,19 @@ def _modelo_guardado(objetivo):
     return joblib.load(MODELOS_DIR / f"modelo_{objetivo}.joblib")
 
 
+@lru_cache
+def _tasas_actuales():
+    """Tasa suavizada de cada entidad con toda la historia de la tabla."""
+    return tasa_suavizada(cargar())
+
+
 def preparar(registros):
     """Registros (dict o DataFrame) con las columnas y tipos del modelo.
 
-    Las variables ausentes quedan como faltantes. Si llega valor_inicial en
-    pesos y no su logaritmo, se calcula aquí.
+    1. Las variables ausentes quedan como faltantes.
+    2. Si llega valor_inicial en pesos y no su logaritmo, se calcula.
+    3. Si llega nombre_entidad y no tasa_entidad, se toma la tasa de la
+       entidad con toda la historia de data/processed/obra_modelo.csv.
     """
     if isinstance(registros, dict):
         registros = [registros]
@@ -173,17 +208,26 @@ def preparar(registros):
     if "log_valor_inicial" not in X and "valor_inicial" in X:
         X["log_valor_inicial"] = np.log10(
             pd.to_numeric(X["valor_inicial"], errors="coerce"))
+    if "tasa_entidad" not in X and "nombre_entidad" in X:
+        tasas, prior = _tasas_actuales()
+        X["tasa_entidad"] = X["nombre_entidad"].map(tasas).fillna(prior)
     X = X.reindex(columns=VARIABLES)
     X[NUMERICAS] = X[NUMERICAS].apply(pd.to_numeric, errors="coerce")
-    for c in ENTIDAD + CATEGORICAS:
+    for c in CATEGORICAS:
         X[c] = a_texto(X[c])
     return X
 
 
-def predecir(registros, objetivo="y"):
-    """Probabilidad de adición para un contrato (dict) o varios."""
-    X = preparar(registros)
-    return _modelo_guardado(objetivo).predict_proba(X)[:, 1]
+def predecir(registros, objetivo="y", calibrada=True):
+    """Probabilidad de adición para un contrato (dict) o varios.
+
+    Con calibrada=True aplica la recalibración de Platt guardada.
+    """
+    guardado = _modelo_guardado(objetivo)
+    p = guardado["pipeline"].predict_proba(preparar(registros))[:, 1]
+    if calibrada and guardado["platt"]:
+        p = recalibrar(p, guardado["platt"])
+    return p
 
 
 def _variable_original(columna):
@@ -197,8 +241,8 @@ def aportes(pipe, X, fondo):
     """Valores SHAP por contrato agrupados por variable original.
 
     `fondo` es una muestra de contratos de referencia (100 a 500 filas).
-    Para la logística los aportes están en log-odds; para los árboles, en
-    la escala de salida del modelo. El signo indica si sube o baja el riesgo.
+    Los aportes están en log-odds del modelo sin recalibrar; el signo indica
+    si la variable sube o baja el riesgo.
     """
     prep, clf = pipe["prep"], pipe["clf"]
     explicador = shap.Explainer(clf, prep.transform(preparar(fondo)))
@@ -211,7 +255,8 @@ def aportes(pipe, X, fondo):
 
 def explicar(registro, fondo, objetivo="y", n=5):
     """Las n variables que más mueven el riesgo de un contrato (panel I)."""
-    a = aportes(_modelo_guardado(objetivo), registro, fondo).iloc[0]
+    pipe = _modelo_guardado(objetivo)["pipeline"]
+    a = aportes(pipe, registro, fondo).iloc[0]
     return a.reindex(a.abs().sort_values(ascending=False).index[:n])
 
 
@@ -238,16 +283,21 @@ if __name__ == "__main__":
                    help="guarda el pipeline en models/")
     a.add_argument("--ganador", action="store_true",
                    help="entrena GANADOR con 2019-2024 para los tres "
-                        "objetivos, evalúa en 2025 y guarda los modelos")
+                        "objetivos, lo recalibra, evalúa en 2025 y lo guarda")
     args = a.parse_args()
     if args.ganador:
         datos = cargar()
+        g = dict(modelo=GANADOR["modelo"], params=GANADOR["params"],
+                 excluir=GANADOR["excluir"], datos=datos)
         for obj in OBJETIVOS:
-            pipe, metricas = entrenar(GANADOR["modelo"], obj,
-                                      GANADOR["params"], GANADOR["excluir"],
-                                      evalua=PRUEBA, datos=datos)
+            pipe, metricas = entrenar(objetivo=obj, evalua=PRUEBA, **g)
+            platt = calibrar(objetivo=obj, **g)
+            prueba = datos[datos["anio"] == PRUEBA]
+            p = recalibrar(pipe.predict_proba(prueba[VARIABLES])[:, 1],
+                           platt)
+            metricas["brier_recalibrado"] = brier_score_loss(prueba[obj], p)
             print(obj, json.dumps(metricas, indent=2))
-            print("Guardado en", guardar(pipe, obj))
+            print("Guardado en", guardar(pipe, obj, platt))
         raise SystemExit
     params = dict(p.split("=", 1) for p in args.param)
     params = {k: _valor(v) for k, v in params.items()}
