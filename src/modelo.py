@@ -43,7 +43,7 @@ MODELOS = ["logistica", "random_forest", "lightgbm", "catboost"]
 # sin aporte cuya salida baja el PR-AUC medio menos de 0,005. Se confirma
 # con las corridas de MLflow; si cambia, se edita y se corre --ganador.
 GANADOR = {"modelo": "catboost",
-           "params": {"depth": 6, "learning_rate": 0.03},
+           "params": {"depth": 8, "learning_rate": 0.03},
            "excluir": ["fuente_principal", "proveedor_repetido",
                        "tipodocproveedor", "proceso_compartido"]}
 REJILLAS = {

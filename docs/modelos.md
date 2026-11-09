@@ -229,7 +229,7 @@ usa `fuente_principal`, `proveedor_repetido`, `tipodocproveedor` ni `proceso_com
 5. **Recalibración.** El modelo subestima la probabilidad porque la tasa subió de 35 % en 2024 a 47 % en 2025. La
    recalibración de Platt, ajustada con 2024, reduce el error (Brier de 0,253 a 0,232) sin cambiar el orden de los
    contratos, pero no alcanza la tasa de 2025.
-6. **Configuración actual.** CatBoost con `depth=6` y `learning_rate=0.03`, definida en `GANADOR` de
-   `src/modelo.py`.
+6. **Configuración actual.** CatBoost con `depth=8` y `learning_rate=0.03`, definida en `GANADOR` de
+   `src/modelo.py`. Confirmada en MLflow con los datos de DVC: supera a `depth=6` por 0,0004 de PR-AUC medio, un empate en la práctica que la regla resuelve a favor del mayor valor.
 
 Las cifras de esta sección están en las secciones 6, 7 y 10 del notebook.
