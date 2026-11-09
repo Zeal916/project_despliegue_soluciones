@@ -12,6 +12,7 @@ la DIARI de la Contraloría General de la República y las veedurías prioricen 
 | `src/check_source.py` | Estado de las 6 tablas en datos.gov.co (filas y última actualización) |
 | `src/features.py` | Tabla de modelado: un contrato por fila con las variables conocidas al firmar |
 | `src/modelo.py` | Modelos, validación temporal, métricas, recalibración, `predecir` y `explicar` |
+| `src/experimentos.py` | Registra en MLflow los 5 experimentos y los modelos (guía en `docs/mlflow_ec2.md`) |
 | `notebooks/01_eda_obra.ipynb` | Exploración de los datos |
 | `notebooks/02_modelos.ipynb` | Comparación de cuatro modelos, selección, prueba en 2025 e interpretabilidad |
 | `docs/modelos.md` | Guía de uso de los modelos para MLflow y el tablero |
