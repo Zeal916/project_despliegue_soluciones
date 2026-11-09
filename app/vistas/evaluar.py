@@ -225,7 +225,7 @@ def panel_h(r):
     with a:
         st.markdown(
             f"<div class='prob' style='color:{color}'>"
-            f"{c.pct(r['riesgo_total'], 0)}</div>"
+            f"{c.pct(r['riesgo_total'], 1)}</div>"
             f"<div class='sub'>riesgo total, máximo de los tres modelos</div>"
             f"<div style='margin-top:.5rem'>"
             f"{c.badge(nivel, f'Alerta {nivel}, p{min(percentil, 99)}')}"
@@ -234,14 +234,14 @@ def panel_h(r):
         p, q = r["probabilidades"], r["percentiles"]
         st.markdown(
             f"<div class='sub'>En tiempo</div><b style='font-size:1.3rem'>"
-            f"{c.pct(p['y_tiempo'], 0)}</b> <span class='sub'>p"
+            f"{c.pct(p['y_tiempo'], 1)}</b> <span class='sub'>p"
             f"{min(round(100 * q['y_tiempo']), 99)}</span><br>"
             f"<div class='sub' style='margin-top:.35rem'>En valor</div>"
-            f"<b style='font-size:1.3rem'>{c.pct(p['y_valor'], 0)}</b> "
+            f"<b style='font-size:1.3rem'>{c.pct(p['y_valor'], 1)}</b> "
             f"<span class='sub'>p{min(round(100 * q['y_valor']), 99)}</span>",
             unsafe_allow_html=True)
     st.caption("Semáforo por percentil frente a los contratos de 2025: alta "
-               "en el 10 % de mayor riesgo (precisión de 0,725 en la prueba), "
+               "en el 10 % de mayor riesgo (precisión de 0,730 en la prueba), "
                "media entre el 70 % y el 90 %. La lectura principal es el "
                "percentil: la probabilidad subestima la tasa de 2025 aun "
                "recalibrada.")
