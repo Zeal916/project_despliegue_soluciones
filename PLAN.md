@@ -47,7 +47,7 @@ resumen de hallazgos (ver `docs/hallazgos_eda.md`).
 - [x] Tabla de modelado (`src/features.py`) y modelos (`src/modelo.py`): logística, Random Forest, LightGBM y CatBoost
 - [x] Validación temporal 2022-2024, búsqueda corta, selección de variables y prueba en 2025 (`notebooks/02_modelos.ipynb`)
 - [x] Recalibración, explicaciones SHAP y guía para MLflow y el tablero (`docs/modelos.md`)
-- [ ] Experimentos registrados en MLflow (EC2) y confirmación de la selección
+- [x] Experimentos registrados en MLflow (EC2) y confirmación de la selección (`src/experimentos.py`, `docs/mlflow_ec2.md`)
 - [ ] Tablero con datos reales y predicciones del modelo
 - [ ] Reporte de 10 páginas y reporte de trabajo en equipo
 
