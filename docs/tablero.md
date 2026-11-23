@@ -110,7 +110,7 @@ Tomadas de `docs/modelos.md`, sección 3. El percentil compara la probabilidad d
 firmados en 2025:
 
 - **Alerta alta:** percentil 90 o más, es decir, el 10 % de mayor riesgo. Es el umbral evaluado en la prueba, con
-  precisión de 0,725.
+  precisión de 0,730.
 - **Media:** entre los percentiles 70 y 90. Solo como zona de atención; no fue evaluado.
 - **Baja:** por debajo del percentil 70.
 

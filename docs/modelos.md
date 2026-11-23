@@ -129,9 +129,9 @@ p_fila = predecir(fila)
    para que no quede por debajo del riesgo de uno de sus componentes.
 2. El percentil y la alerta son la lectura principal: la probabilidad subestima la tasa de 2025 aun después de la
    recalibración (sección 5).
-3. La alerta en el 10 % de mayor riesgo es el umbral evaluado en el notebook (precisión de 0,725 en 2025).
-4. En `factores`, un aporte positivo sube el riesgo y uno negativo lo baja. `explicar` tarda menos de medio segundo
-   por contrato.
+3. La alerta en el 10 % de mayor riesgo es el umbral evaluado en la prueba (precisión de 0,730 en 2025).
+4. En `factores`, un aporte positivo sube el riesgo y uno negativo lo baja. `explicar` tarda menos de un segundo por
+   contrato con 300 contratos de fondo.
 5. Las vistas A a F usan la misma tabla: `anio`, `firma`, `departamento`, `modalidad`, `nombre_entidad`,
    `valor_inicial`, `dias_adic`, `y`, `y_tiempo` e `y_valor`. `estado_contrato` es posterior a la firma y no va en el
    formulario.
@@ -163,7 +163,7 @@ Parámetros:
 
 | Parámetro | Valores | Por defecto |
 | --- | --- | --- |
-| `modelo` | `"logistica"`, `"random_forest"`, `"lightgbm"`, `"catboost"` | |
+| `modelo` | `"logistica"`, `"random_forest"`, `"lightgbm"`, `"catboost"`, `"ensamble"` | |
 | `objetivo` | `"y"` (adición en tiempo o en valor), `"y_tiempo"`, `"y_valor"` | `"y"` |
 | `params` | Diccionario de hiperparámetros, por ejemplo `{"depth": 6, "learning_rate": 0.03}` | Valores base |
 | `excluir` | Lista de variables que no entran al modelo | Ninguna |
@@ -232,9 +232,10 @@ usa `fuente_principal`, `proveedor_repetido`, `tipodocproveedor` ni `proceso_com
    regla salen las 3 variables sin aporte. `fuente_principal` también sale, por riesgo de fuga: sus montos se
    actualizan con las adiciones. Quedan 15 variables.
 5. **Recalibración.** El modelo subestima la probabilidad porque la tasa subió de 35 % en 2024 a 47 % en 2025. La
-   recalibración de Platt, ajustada con 2024, reduce el error (Brier de 0,253 a 0,232) sin cambiar el orden de los
+   recalibración de Platt, ajustada con 2024, reduce el error (Brier de 0,253 a 0,231) sin cambiar el orden de los
    contratos, pero no alcanza la tasa de 2025.
 6. **Configuración actual.** CatBoost con `depth=8` y `learning_rate=0.03`, definida en `GANADOR` de
    `src/modelo.py`. Confirmada en MLflow con los datos de DVC: supera a `depth=6` por 0,0004 de PR-AUC medio, un empate en la práctica que la regla resuelve a favor del mayor valor.
 
-Las cifras de esta sección están en las secciones 6, 7 y 10 del notebook.
+Las cifras de los puntos 1 a 4 están en las secciones 6, 7 y 10 del notebook; las de los puntos 5 y 6, en la salida
+de `python src/modelo.py --ganador` y en MLflow.

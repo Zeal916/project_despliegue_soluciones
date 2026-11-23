@@ -21,8 +21,8 @@ la DIARI de la Contraloría General de la República y las veedurías prioricen 
 | `reports/figures/` | Figuras que genera el notebook |
 | `data/raw/*.dvc` | Punteros DVC de los datos; los CSV están en DagsHub |
 | `data/processed/`, `models/` | Tabla de modelado y modelos entrenados; se regeneran con `src/` (fuera de Git) |
-| `docker/`, `docker-compose.yml` | Entorno con MLflow; la API y el tablero se agregan en las entregas 2 y 3 |
-| `app/` | Reservada para la API y el tablero |
+| `docker/`, `docker-compose.yml` | Entorno con MLflow y servicios de la API y el tablero (perfil `app`) |
+| `app/` | Tablero en Streamlit (`dashboard.py`, `vistas/`, guía en `docs/tablero.md`); la API se agrega en la Entrega 3 |
 
 ## Fuentes
 
