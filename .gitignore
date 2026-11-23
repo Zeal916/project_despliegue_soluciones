@@ -12,3 +12,8 @@ agents/
 # tabla de modelado y modelos entrenados: se regeneran con src/
 /data/processed/
 /models/
+# paquete del modelo: se versiona el .whl de model-pkg/dist/; los artefactos
+# van dentro del .whl y se regeneran con model-pkg/entrenar.py
+model-pkg/build/
+model-pkg/*.egg-info/
+model-pkg/secop_obra_modelo/trained/

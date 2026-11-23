@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "secop-obra-modelo"
+dynamic = ["version"]
+description = "Riesgo de adición de contratos de obra de SECOP II al momento de la firma"
+readme = "README.md"
+requires-python = ">=3.11"
+# Versiones fijas: los modelos se serializaron con estas librerías.
+dependencies = [
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "scikit-learn==1.8.0",
+    "catboost==1.2.10",
+    "shap==0.51.0",
+    "pydantic>=2.5",
+    "joblib>=1.3",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["secop_obra_modelo"]
+
+[tool.setuptools.dynamic]
+version = { file = "secop_obra_modelo/VERSION" }
+
+[tool.setuptools.package-data]
+secop_obra_modelo = ["VERSION", "trained/*.joblib"]
