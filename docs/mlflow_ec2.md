@@ -21,7 +21,7 @@ MLFLOW_TRACKING_URI=http://<IP pública>:5000 python src/experimentos.py      # 
 $env:MLFLOW_TRACKING_URI="http://<IP pública>:5000"; python src/experimentos.py   # PowerShell
 ```
 
-Tarda de 2 a 5 minutos y crea 5 experimentos (`secop_obra/1_modelos_base` a `secop_obra/5_prueba_2025`) con 35 corridas,
+Tarda de 2 a 5 minutos y crea 6 experimentos (`secop_obra/1_modelos_base` a `secop_obra/6_ensamble`) con 37 corridas,
 y tres modelos registrados (`riesgo_adicion_y`, `riesgo_adicion_y_tiempo`, `riesgo_adicion_y_valor`). Al final imprime si
 la configuración ganadora coincide con `GANADOR` de `src/modelo.py`. `--solo 1 2` corre solo algunos experimentos.
 

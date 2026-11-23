@@ -66,7 +66,7 @@ desviacion = metricas["pr_auc"].std()
 
 ### 2.2. Experimentos
 
-Todas las corridas usan las funciones de `src/modelo.py`. Total: 35 corridas.
+Todas las corridas usan las funciones de `src/modelo.py`. Total: 37 corridas.
 
 | # | Experimento | Llamadas | Corridas |
 | --- | --- | --- | --- |
@@ -75,6 +75,7 @@ Todas las corridas usan las funciones de `src/modelo.py`. Total: 35 corridas.
 | 3 | Selección de variables | `validar` con la configuración ganadora y `excluir` igual a: nada; las 3 variables sin aporte; `["fuente_principal"]`; `GANADOR["excluir"]` | 4 |
 | 4 | Objetivos | `validar` con la configuración final y `objetivo` igual a `"y_tiempo"` y `"y_valor"` | 2 |
 | 5 | Prueba | `entrenar(..., evalua=2025)` con la configuración final para `"y"`, `"y_tiempo"` y `"y_valor"` | 3 |
+| 6 | Ensamble | `validar` con la configuración final y con `"ensamble"` (`ENSAMBLE`: promedio en log-odds de CatBoost y LightGBM), ambos con `GANADOR["excluir"]` | 2 |
 
 Las 3 variables sin aporte son `proveedor_repetido`, `tipodocproveedor` y `proceso_compartido`.
 
@@ -84,6 +85,10 @@ Las 3 variables sin aporte son `proveedor_repetido`, `tipodocproveedor` y `proce
 2. La de mayor valor es la seleccionada; no hay criterio de desempate y 2025 no interviene.
 3. Comparar con `GANADOR` en `src/modelo.py`. Si coincide, la selección queda confirmada.
 4. Si no coincide, editar `GANADOR` con la nueva configuración y correr `python src/modelo.py --ganador`.
+5. La precisión en el 10 % de mayor riesgo se reporta como métrica secundaria; no entra en la regla.
+6. El ensamble reemplaza a `GANADOR` solo si sube el PR-AUC medio en 0,005 o más. Resultado: 0,5263 frente a 0,5253
+   (+0,0010), no se adopta. Además, con shap 0.51 la explicación de LightGBM no cumple la aditividad (error de hasta
+   0,165 en log-odds), lo que rompería la explicación exacta del panel I.
 
 Las semillas son fijas: las cifras de MLflow deben coincidir con las del notebook.
 

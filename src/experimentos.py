@@ -1,4 +1,4 @@
-"""Registra en MLflow los 5 experimentos de docs/modelos.md (35 corridas).
+"""Registra en MLflow los 6 experimentos de docs/modelos.md (37 corridas).
 
 1. Modelos base: validar(m) para los cuatro modelos.
 2. Ajuste de hiperparámetros: cada combinación de REJILLAS.
@@ -6,6 +6,9 @@
 4. Objetivos y_tiempo e y_valor con la configuración final.
 5. Prueba en 2025 de los tres objetivos; los modelos se registran en el
    Model Registry como riesgo_adicion_<objetivo>.
+6. Ensamble: promedio en log-odds de CatBoost y LightGBM (ENSAMBLE) frente
+   a GANADOR, ambos con las variables finales. Se adopta solo si sube el
+   PR-AUC medio en 0,005 o más.
 
 Cada corrida guarda la media de las métricas en 2022-2024, la desviación del
 PR-AUC y la métrica de cada año con step = año.
@@ -24,23 +27,26 @@ from sklearn.metrics import brier_score_loss
 from sklearn.model_selection import ParameterGrid
 
 from features import OBJETIVOS, SALIDA, VARIABLES, cargar
-from modelo import (GANADOR, MODELOS, PRUEBA, REJILLAS, calibrar, entrenar,
-                    recalibrar, validar)
+from modelo import (ENSAMBLE, GANADOR, MODELOS, PRUEBA, REJILLAS, calibrar,
+                    entrenar, recalibrar, validar)
 
 SIN_APORTE = ["proveedor_repetido", "tipodocproveedor", "proceso_compartido"]
 PREFIJO = "secop_obra"
 
 
 def registrar(nombre, experimento, modelo, objetivo="y", params=None,
-              excluir=(), datos=None):
-    """Una corrida de validación temporal; devuelve el PR-AUC medio."""
+              excluir=(), datos=None, extra=None):
+    """Una corrida de validación temporal; devuelve el PR-AUC medio.
+
+    `extra` son parámetros que solo se registran (los del ensamble).
+    """
     mlflow.set_experiment(f"{PREFIJO}/{experimento}")
     with mlflow.start_run(run_name=nombre):
         mlflow.set_tags({"experimento": experimento, "datos_md5": MD5})
         mlflow.log_params({"modelo": modelo, "objetivo": objetivo,
                            "excluir": ",".join(excluir) or "ninguna",
                            "n_variables": len(VARIABLES) - len(excluir),
-                           **(params or {})})
+                           **(params or {}), **(extra or {})})
         m = validar(modelo, objetivo, params, list(excluir), datos)
         for anio, fila in m.iterrows():
             mlflow.log_metrics(fila.to_dict(), step=anio)
@@ -78,7 +84,8 @@ def prueba(objetivo, params, excluir, datos):
 
 if __name__ == "__main__":
     a = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    a.add_argument("--solo", type=int, nargs="*", default=[1, 2, 3, 4, 5])
+    a.add_argument("--solo", type=int, nargs="*",
+                   default=[1, 2, 3, 4, 5, 6])
     solo = a.parse_args().solo
     MD5 = hashlib.md5(SALIDA.read_bytes()).hexdigest()
     datos = cargar()
@@ -119,3 +126,14 @@ if __name__ == "__main__":
     if 5 in solo:
         for obj in OBJETIVOS:
             prueba(obj, params, GANADOR["excluir"], datos)
+    if 6 in solo:
+        base = registrar(f"{modelo}_final", "6_ensamble", modelo,
+                         params=params, excluir=GANADOR["excluir"],
+                         datos=datos)
+        miembros = {f"{m}_{k}": v for m, p in ENSAMBLE.items()
+                    for k, v in p.items()}
+        ens = registrar("ensamble_catboost_lightgbm", "6_ensamble",
+                        "ensamble", excluir=GANADOR["excluir"], datos=datos,
+                        extra=miembros)
+        print(f"Ensamble {ens - base:+.4f} frente a {modelo}: "
+              f"{'se adopta' if ens - base >= 0.005 else 'no se adopta'}")

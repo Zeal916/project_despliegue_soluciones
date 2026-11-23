@@ -20,6 +20,7 @@ import pandas as pd
 import shap
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
+from sklearn.base import BaseEstimator, ClassifierMixin, clone
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -38,7 +39,9 @@ SEMILLA = 42
 PLIEGUES = [2022, 2023, 2024]  # validación con ventana creciente
 PRUEBA = 2025
 MODELOS = ["logistica", "random_forest", "lightgbm", "catboost"]
-# Regla: mayor PR-AUC medio en PLIEGUES. Se excluyen fuente_principal por
+# Regla: mayor PR-AUC medio en PLIEGUES; la precisión en el 10 % de mayor
+# riesgo (alerta alta del tablero) se reporta como métrica secundaria, sin
+# entrar en la regla. Se excluyen fuente_principal por
 # riesgo de fuga (sus montos se actualizan con las adiciones) y las variables
 # sin aporte cuya salida baja el PR-AUC medio menos de 0,005. Se confirma
 # con las corridas de MLflow; si cambia, se edita y se corre --ganador.
@@ -46,6 +49,12 @@ GANADOR = {"modelo": "catboost",
            "params": {"depth": 8, "learning_rate": 0.03},
            "excluir": ["fuente_principal", "proveedor_repetido",
                        "tipodocproveedor", "proceso_compartido"]}
+# Ensamble: promedio en log-odds de la mejor configuración de CatBoost y de
+# LightGBM en 2_hiperparametros. Reemplaza a GANADOR solo si sube el PR-AUC
+# medio de validación en 0,005 o más (regla fijada antes de evaluarlo).
+# Resultado con 15 variables: 0,5263 frente a 0,5253; no se adopta.
+ENSAMBLE = {"catboost": {"depth": 8, "learning_rate": 0.03},
+            "lightgbm": {"num_leaves": 15, "learning_rate": 0.03}}
 REJILLAS = {
     "logistica": {"C": [0.01, 0.1, 1, 10]},
     "random_forest": {"min_samples_leaf": [5, 20, 50],
@@ -55,8 +64,34 @@ REJILLAS = {
 }
 
 
+class EnsambleLogit(ClassifierMixin, BaseEstimator):
+    """Promedio en log-odds de varios clasificadores ajustados por separado.
+
+    En teoría el aporte SHAP de cada variable es el promedio de sus aportes
+    en los miembros, pero con shap 0.51 el TreeExplainer de LightGBM no
+    cumple la aditividad (error de hasta 0,165 en log-odds).
+    """
+
+    def __init__(self, miembros=()):
+        self.miembros = miembros
+
+    def fit(self, X, y):
+        self.estimadores_ = [clone(m).fit(X, y) for m in self.miembros]
+        self.classes_ = self.estimadores_[0].classes_
+        return self
+
+    def predict_proba(self, X):
+        z = np.mean([_logit(m.predict_proba(X)[:, 1])
+                     for m in self.estimadores_], axis=0)
+        p = 1 / (1 + np.exp(-z))
+        return np.column_stack([1 - p, p])
+
+
 def clasificador(nombre):
     """Clasificador base con hiperparámetros iniciales razonables."""
+    if nombre == "ensamble":
+        return EnsambleLogit([clasificador(m).set_params(**p)
+                              for m, p in ENSAMBLE.items()])
     return {
         "logistica": LogisticRegression(max_iter=2000),
         "random_forest": RandomForestClassifier(
@@ -270,7 +305,8 @@ def _valor(texto):
 
 if __name__ == "__main__":
     a = argparse.ArgumentParser(description="Entrena y evalúa un modelo.")
-    a.add_argument("--modelo", choices=MODELOS, default=GANADOR["modelo"])
+    a.add_argument("--modelo", choices=MODELOS + ["ensamble"],
+                   default=GANADOR["modelo"])
     a.add_argument("--objetivo", choices=OBJETIVOS, default="y")
     a.add_argument("--param", action="append", default=[],
                    metavar="CLAVE=VALOR", help="hiperparámetro, repetible")
