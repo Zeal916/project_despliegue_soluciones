@@ -74,8 +74,12 @@ def dias(cantidad, unidad):
 
 
 def a_texto(serie):
-    """Categórica como texto; los faltantes quedan como NaN."""
-    return serie.map(lambda v: v if pd.isna(v) else str(v)).astype(object)
+    """Categórica como texto; los faltantes (None o NaN) quedan como NaN.
+
+    El one-hot trata None y NaN como categorías distintas.
+    """
+    return serie.map(lambda v: np.nan if pd.isna(v) else str(v)
+                     ).astype(object)
 
 
 def limpiar(serie):

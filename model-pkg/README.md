@@ -34,7 +34,7 @@ Las tres funciones devuelven diccionarios o listas listos para JSON, con las cla
 | Campo | Tipo | Ejemplo |
 | --- | --- | --- |
 | `id_contrato` | texto | `CO1.PCCNTR.0001` |
-| `valor_inicial` | número, en pesos | `850000000` |
+| `valor_inicial` (o `log_valor_inicial`) | número, en pesos (o su log10) | `850000000` |
 | `plazo_inicial` | número, en días | `180` |
 | `respuestas` | número | `3` |
 | `inicial_sobre_base` | número | `0.98` |
