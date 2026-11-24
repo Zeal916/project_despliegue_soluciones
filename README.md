@@ -18,6 +18,7 @@ la DIARI de la Contraloría General de la República y las veedurías prioricen 
 | `notebooks/02_modelos.ipynb` | Comparación de cuatro modelos, selección, prueba en 2025 e interpretabilidad |
 | `docs/modelos.md` | Guía de uso de los modelos para MLflow y el tablero |
 | `docs/hallazgos_eda.md` | Hallazgos del EDA, revisiones del mockup e implicaciones para el modelado |
+| `docs/despliegue_ec2.md`, `docker/ec2_app.sh` | Despliegue de la API y el tablero en EC2 con Docker Compose |
 | `docs/evidencia/` | Registro de la indisponibilidad de Contratos Electrónicos en octubre de 2026 |
 | `reports/figures/` | Figuras que genera el notebook |
 | `data/raw/*.dvc` | Punteros DVC de los datos; los CSV están en DagsHub |
