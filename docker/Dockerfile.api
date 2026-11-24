@@ -1,0 +1,29 @@
+FROM python:3.12-slim
+
+# Usuario sin privilegios que ejecuta la API
+RUN adduser --disabled-password --gecos '' api-user
+
+# libgomp1: librería de OpenMP que necesita CatBoost
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+
+WORKDIR /opt/api
+
+# Dependencias de la API y paquete del modelo (trae los modelos entrenados)
+COPY docker/requirements-api.txt model-pkg/dist/secop_obra_modelo-1.0.0-py3-none-any.whl ./
+RUN pip install -r requirements-api.txt ./secop_obra_modelo-1.0.0-py3-none-any.whl \
+    && rm ./secop_obra_modelo-1.0.0-py3-none-any.whl
+
+# Solo el código de la API: no necesita datos, src/ ni MLflow
+COPY app/api.py ./app/api.py
+
+USER api-user
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+
+CMD ["uvicorn", "app.api:app", "--host", "0.0.0.0", "--port", "8000"]

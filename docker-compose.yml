@@ -1,8 +1,9 @@
-# docker compose up -d mlflow      -> MLflow en http://localhost:5000
-# docker compose up -d dashboard   -> tablero en http://localhost:8501
-#   Sin API_URL el tablero predice con el paquete del modelo; con la API lista:
-#   API_URL=http://IP_DE_LA_API:8000 docker compose up -d dashboard
-# api queda en el perfil "app" hasta que exista su código
+# docker compose up -d mlflow          -> MLflow en http://localhost:5000
+# docker compose up -d api dashboard   -> API en http://localhost:8000 (docs en /docs)
+#                                         y tablero en http://localhost:8501
+#   El tablero pide las predicciones a la API del compose. Para usar otra:
+#   API_URL=http://IP_DE_LA_API:8000 docker compose up -d --no-deps dashboard
+#   Con API_URL= (vacía) el tablero predice con el paquete del modelo.
 x-base: &base
   build: { context: ., dockerfile: docker/Dockerfile }
   volumes: [ "./data:/app/data" ]
@@ -18,16 +19,16 @@ services:
     volumes: [ "./mlflow_data:/mlflow" ]
 
   api:
-    <<: *base
-    profiles: [ app ]
-    command: uvicorn app.api:app --host 0.0.0.0 --port 8000
-    environment: { MLFLOW_TRACKING_URI: "http://mlflow:5000" }
+    build: { context: ., dockerfile: docker/Dockerfile.api }
+    image: api-secop:latest
     ports: [ "8000:8000" ]
-    depends_on: [ mlflow ]
+    restart: unless-stopped
 
   dashboard:
     build: { context: ., dockerfile: docker/Dockerfile.tablero }
     image: tablero-secop:latest
-    environment: { PORT: "8501", API_URL: "${API_URL:-}" }
+    environment: { PORT: "8501", API_URL: "${API_URL-http://api:8000}" }
     ports: [ "8501:8501" ]
+    depends_on:
+      api: { condition: service_healthy }
     restart: unless-stopped

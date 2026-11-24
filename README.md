@@ -22,8 +22,9 @@ la DIARI de la Contraloría General de la República y las veedurías prioricen 
 | `reports/figures/` | Figuras que genera el notebook |
 | `data/raw/*.dvc` | Punteros DVC de los datos; los CSV están en DagsHub |
 | `data/processed/`, `models/` | Tabla de modelado y modelos entrenados; se regeneran con `src/` (fuera de Git) |
-| `docker/`, `docker-compose.yml` | Entorno con MLflow y servicios de la API y el tablero (perfil `app`) |
-| `app/` | Tablero en Streamlit (`dashboard.py`, `vistas/`, guía en `docs/tablero.md`); la API se agrega en la Entrega 3 |
+| `docker/`, `docker-compose.yml` | Imágenes y servicios de MLflow, la API (`Dockerfile.api`) y el tablero (`Dockerfile.tablero`) |
+| `app/` | Tablero en Streamlit (`dashboard.py`, `vistas/`, guía en `docs/tablero.md`) y API en FastAPI (`api.py`) |
+| `tests/test_api.py` | Pruebas de la API: `python -m pytest tests` |
 
 ## Fuentes
 
@@ -48,3 +49,6 @@ Conjuntos abiertos de SECOP II en datos.gov.co:
 4. Generar la tabla de modelado con `python src/features.py`, guardar los modelos seleccionados con
    `python src/modelo.py --ganador` y ejecutar `notebooks/02_modelos.ipynb` con el Jupyter del mismo entorno.
 5. Levantar MLflow con `docker compose up -d mlflow` y abrir http://localhost:5000.
+6. Levantar la API y el tablero con `docker compose up -d --build api dashboard`: API en http://localhost:8000
+   (documentación interactiva en `/docs`; rutas `GET /health`, `POST /predict` y `POST /predict/lote`) y tablero en
+   http://localhost:8501, que le pide las predicciones a la API.

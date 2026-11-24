@@ -1,0 +1,4 @@
+# Dependencias de la imagen de la API (docker/Dockerfile.api). El paquete
+# secop_obra_modelo trae las del modelo (scikit-learn, catboost, shap...).
+fastapi==0.165.0
+uvicorn==0.54.0
