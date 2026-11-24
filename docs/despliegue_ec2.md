@@ -1,26 +1,33 @@
 # Despliegue de la API y el tablero en AWS EC2
 
-La API (FastAPI, puerto 8000) y el tablero (Streamlit, puerto 8501) corren como contenedores Docker en la misma
-instancia EC2 del servidor MLflow (`docs/mlflow_ec2.md`). El tablero le pide las predicciones a la API por la red interna
-de Docker Compose (`http://api:8000`).
+La API (FastAPI, puerto 8000) y el tablero (Streamlit, puerto 8501) corren como contenedores Docker en una instancia
+EC2 propia, separada del servidor MLflow (`docs/mlflow_ec2.md`). El tablero le pide las predicciones a la API por la red
+interna de Docker Compose (`http://api:8000`).
 
 ```
 Usuario ──▶ :8501 tablero (Streamlit) ──▶ api:8000 API (FastAPI + secop_obra_modelo)
 Usuario ──▶ :8000/docs API
-Equipo  ──▶ :5000 MLflow (servicio systemd)
 ```
 
-## 1. Preparar la instancia
+## 1. Lanzar la instancia
 
-La instancia de MLflow se lanzó con 8 GB de disco. Las imágenes ocupan unos 4 GB y los modelos se cargan en memoria,
-así que se amplía una vez, con la instancia detenida:
+EC2 > Launch instance:
 
-1. EC2 > Instances > la instancia > Instance state > **Stop**.
-2. Actions > Instance settings > **Change instance type**: `t3.medium` (2 vCPU, 4 GB de RAM).
-3. Pestaña Storage > el volumen > Actions > **Modify volume**: 30 GB. Al encender, Ubuntu amplía la partición.
-4. Pestaña Security > el grupo de seguridad > **Edit inbound rules**: agregar TCP 8000 y TCP 8501 con origen
-   `0.0.0.0/0` (para que los tutores puedan abrirlos). SSH (22) y MLflow (5000) quedan con origen "My IP".
-5. Instance state > **Start** y copiar la nueva IP pública.
+| Campo | Valor |
+| --- | --- |
+| Name | `secop-app` |
+| AMI | Ubuntu Server 24.04 LTS (64-bit x86) |
+| Instance type | `t3.medium` (2 vCPU, 4 GB de RAM; las imágenes cargan los modelos en memoria) |
+| Key pair | `vockey` (`labsuser.pem` en AWS Academy) |
+| Storage | 30 GB gp3 (las dos imágenes ocupan unos 4 GB más la caché de construcción) |
+| Security group | SSH 22 desde "My IP"; TCP 8000 y TCP 8501 desde `0.0.0.0/0` |
+
+Opcional: en Advanced details > User data, pegar lo siguiente para que el paso 2 corra solo al arrancar:
+
+```bash
+#!/bin/bash
+curl -fsSL https://raw.githubusercontent.com/Zeal916/project_despliegue_soluciones/main/docker/ec2_app.sh | bash
+```
 
 ## 2. Desplegar
 
@@ -48,12 +55,12 @@ publicar cambios después de un push, se vuelve a correr el mismo comando.
 ## 4. Capturas para la entrega
 
 1. Consola de EC2: instancia en ejecución con ID, tipo, IP pública y usuario de AWS (esquina superior derecha).
-2. Grupo de seguridad con los puertos 22, 5000, 8000 y 8501.
+2. Grupo de seguridad con los puertos 22, 8000 y 8501.
 3. Terminal SSH con `whoami`, `curl -s ifconfig.me`, `docker compose ps` y `docker images`.
 4. `http://<IP>:8000/docs` con una petición a `/predict` ejecutada y su respuesta.
 5. El tablero con la IP en la barra de direcciones: la vista de evaluación de un contrato y la lista priorizada.
 
 ## 5. Detener
 
-Instance state > **Stop**, sin terminar. Al encenderla de nuevo, Docker y MLflow arrancan solos y los contenedores se
+Instance state > **Stop**, sin terminar. Al encenderla de nuevo, Docker arranca solo y los contenedores se
 levantan otra vez (`restart: unless-stopped`); solo cambia la IP pública.

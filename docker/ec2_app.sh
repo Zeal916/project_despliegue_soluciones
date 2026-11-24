@@ -1,6 +1,6 @@
 #!/bin/bash
 # Despliega la API (puerto 8000) y el tablero (puerto 8501) en una instancia
-# EC2 Ubuntu 24.04 con Docker Compose. Convive con el servicio MLflow (5000).
+# EC2 Ubuntu 24.04 con Docker Compose (docs/despliegue_ec2.md).
 # Se corre por SSH, también para actualizar después de un push:
 #   curl -fsSL https://raw.githubusercontent.com/Zeal916/project_despliegue_soluciones/main/docker/ec2_app.sh | sudo bash
 # Los contenedores vuelven a arrancar solos al encender la instancia.
