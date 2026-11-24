@@ -1,5 +1,8 @@
-# Uso actual:  docker compose up -d mlflow      -> MLflow en http://localhost:5000
-# api y dashboard quedan en el perfil "app" hasta que existan app/api.py y app/dashboard.py
+# docker compose up -d mlflow      -> MLflow en http://localhost:5000
+# docker compose up -d dashboard   -> tablero en http://localhost:8501
+#   Sin API_URL el tablero predice con el paquete del modelo; con la API lista:
+#   API_URL=http://IP_DE_LA_API:8000 docker compose up -d dashboard
+# api queda en el perfil "app" hasta que exista su código
 x-base: &base
   build: { context: ., dockerfile: docker/Dockerfile }
   volumes: [ "./data:/app/data" ]
@@ -23,9 +26,8 @@ services:
     depends_on: [ mlflow ]
 
   dashboard:
-    <<: *base
-    profiles: [ app ]
-    command: streamlit run app/dashboard.py --server.port 8501 --server.address 0.0.0.0
-    environment: { API_URL: "http://api:8000" }
+    build: { context: ., dockerfile: docker/Dockerfile.tablero }
+    image: tablero-secop:latest
+    environment: { PORT: "8501", API_URL: "${API_URL:-}" }
     ports: [ "8501:8501" ]
-    depends_on: [ api ]
+    restart: unless-stopped

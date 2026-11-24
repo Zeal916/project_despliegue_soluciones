@@ -9,7 +9,16 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from features import OBJETIVOS, cargar  # noqa: E402
-from modelo import PRUEBA, explicar, predecir, preparar  # noqa: E402
+from modelo import (MODELOS_DIR, PRUEBA, explicar, predecir,  # noqa: E402
+                    preparar)
+
+# En el contenedor no existe models/: si está instalado el paquete del modelo
+# (model-pkg/dist/*.whl), las predicciones locales se calculan con él, con las
+# mismas funciones que expone la API.
+try:
+    import secop_obra_modelo as paquete
+except ImportError:
+    paquete = None
 
 UMBRAL_ALTA = 0.90
 UMBRAL_MEDIA = 0.70
@@ -64,7 +73,21 @@ def contexto():
     }
 
 
+def usa_paquete() -> bool:
+    return (paquete is not None
+            and not (MODELOS_DIR / "modelo_y.joblib").exists())
+
+
+def _con_paquete(funcion, *args, **kwargs):
+    try:
+        return funcion(*args, **kwargs)
+    except Exception as e:  # validación o artefactos faltantes
+        raise ErrorModelo(f"Paquete secop_obra_modelo: {e}") from e
+
+
 def estado() -> dict:
+    if usa_paquete():
+        return paquete.estado()
     try:
         ctx = contexto()
         return {"estado": "ok", "anio_referencia": PRUEBA,
@@ -111,6 +134,9 @@ def _puntuar(X: pd.DataFrame, ctx):
 
 def predecir_contrato(contrato: dict, n: int = 6) -> dict:
     """Probabilidades, percentiles, alerta y factores SHAP de un contrato."""
+    if usa_paquete():
+        return _con_paquete(paquete.predecir_contrato, contrato,
+                            factores=True, n=n)
     ctx = contexto()
     datos = {k: v for k, v in contrato.items() if k != "id_contrato"}
     X = _completar(pd.DataFrame([datos]), ctx["conteo_entidad"])
@@ -140,6 +166,10 @@ def predecir_contrato(contrato: dict, n: int = 6) -> dict:
 
 def predecir_lote(registros: pd.DataFrame) -> pd.DataFrame:
     """Probabilidades, percentil y alerta para varios contratos (vista 3)."""
+    if usa_paquete():
+        registros = registros.astype(object).where(registros.notna(), None)
+        return pd.DataFrame(_con_paquete(
+            paquete.predecir_lote, registros.to_dict(orient="records")))
     ctx = contexto()
     X = _completar(registros.drop(columns="id_contrato", errors="ignore")
                    .reset_index(drop=True), ctx["conteo_entidad"])

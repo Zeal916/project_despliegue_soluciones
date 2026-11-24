@@ -1,0 +1,12 @@
+# Dependencias de la imagen del tablero (docker/Dockerfile.tablero)
+streamlit==1.67.0
+plotly==6.9.0
+requests>=2.32,<3
+pandas==2.3.3
+numpy==2.3.5
+# Las importa src/modelo.py; versiones iguales a las usadas para entrenar
+scikit-learn==1.8.0
+lightgbm==4.6.0
+catboost==1.2.10
+shap==0.51.0
+joblib==1.5.3

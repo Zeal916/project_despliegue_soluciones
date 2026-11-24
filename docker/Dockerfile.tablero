@@ -1,0 +1,40 @@
+FROM python:3.12-slim
+
+# Crear usuario sin privilegios que ejecuta el tablero
+RUN adduser --disabled-password --gecos '' tablero-user
+
+# libgomp1: librería de OpenMP que necesitan LightGBM y CatBoost
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+
+# Definir directorio de trabajo
+WORKDIR /opt/tablero
+
+# Instalar dependencias del tablero y el paquete del modelo
+COPY docker/requirements-tablero.txt model-pkg/dist/secop_obra_modelo-1.0.0-py3-none-any.whl ./
+RUN pip install --upgrade pip \
+    && pip install -r requirements-tablero.txt ./secop_obra_modelo-1.0.0-py3-none-any.whl
+
+# Copiar el código del tablero, los pipelines de datos y el tema
+COPY src ./src
+COPY app ./app
+COPY .streamlit ./.streamlit
+
+# Construir la tabla de contratos que usan las vistas (data/processed/obra_modelo.csv)
+COPY data/raw_ingest ./data/raw
+RUN python src/features.py
+
+# Script de arranque, permisos y propiedad de la carpeta
+COPY docker/run_tablero.sh ./run.sh
+RUN chmod +x ./run.sh && chown -R tablero-user:tablero-user ./
+
+USER tablero-user
+
+# Puerto del tablero (se puede cambiar con -e PORT=...)
+ENV PORT=8501
+EXPOSE 8501
+
+# Comando a ejecutar al correr el contenedor
+CMD ["bash", "./run.sh"]

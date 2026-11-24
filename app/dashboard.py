@@ -36,7 +36,12 @@ st.sidebar.divider()
 c.filtros_globales(c.datos())
 
 estado = c.estado_modelos()
-fuente = f"API en {c.API_URL}" if c.usa_api() else "modelos locales (models/)"
+if c.usa_api():
+    fuente = f"API en {c.API_URL}"
+elif c.prediccion.usa_paquete():
+    fuente = "el paquete secop_obra_modelo"
+else:
+    fuente = "modelos locales (models/)"
 if estado and estado.get("estado") == "ok":
     st.sidebar.caption(f"Predicciones con {fuente}. Percentiles frente a "
                        f"{c.entero(estado['contratos_referencia'])} contratos "
