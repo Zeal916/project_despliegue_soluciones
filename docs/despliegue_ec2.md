@@ -60,6 +60,21 @@ publicar cambios después de un push, se vuelve a correr el mismo comando.
 4. `http://<IP>:8000/docs` con una petición a `/predict` ejecutada y su respuesta.
 5. El tablero con la IP en la barra de direcciones: la vista de evaluación de un contrato y la lista priorizada.
 
+Las capturas del despliegue del 24 de noviembre de 2026 (instancia `i-090d439ffe30584e6`, IP 54.210.63.63) están en
+`docs/evidencia/despliegue/`:
+
+| Archivo | Qué muestra |
+| --- | --- |
+| `01_instancia_ec2.png` | Instancia `secop-app` en ejecución, tipo `t3.medium`, IP pública y usuario de AWS |
+| `02_almacenamiento.png` | Volumen raíz de 30 GiB |
+| `03_grupo_seguridad.png` | Reglas de entrada: 22 desde la IP del equipo, 8000 y 8501 abiertos |
+| `04_terminal_ssh_docker.png` | `whoami`, IP pública, `docker compose ps`, `docker images` y `/health` |
+| `05_api_docs.png` | Documentación de la API con sus tres rutas |
+| `06_api_predict.png` | Petición a `POST /predict` y respuesta 200 |
+| `07_tablero_panorama.png` | Panorama del tablero; la barra lateral indica que predice con la API |
+| `08_tablero_evaluar.png` | Evaluación de un contrato con probabilidad, alerta y factores SHAP |
+| `09_tablero_priorizados.png` | Contratos de 2025 priorizados con las predicciones de la API |
+
 ## 5. Detener
 
 Instance state > **Stop**, sin terminar. Al encenderla de nuevo, Docker arranca solo y los contenedores se
