@@ -16,7 +16,7 @@ EC2 > Launch instance:
 | Campo | Valor |
 | --- | --- |
 | Name | `secop-app` |
-| AMI | Ubuntu Server 24.04 LTS (64-bit x86) |
+| AMI | Ubuntu Server 26.04 LTS (64-bit x86) |
 | Instance type | `t3.medium` (2 vCPU, 4 GB de RAM; las imágenes cargan los modelos en memoria) |
 | Key pair | `vockey` (`labsuser.pem` en AWS Academy) |
 | Storage | 30 GB gp3 (las dos imágenes ocupan unos 4 GB más la caché de construcción) |
