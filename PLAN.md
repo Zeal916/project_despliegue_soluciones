@@ -1,13 +1,13 @@
-# Plan de trabajo. SECOP II: riesgo de sobrecostos al firmar el contrato
+# Plan de trabajo. SECOP II: riesgo de adiciones al firmar el contrato de obra
 
-Equipo: 3 personas. Actualizado: 2026-11-07.
+Equipo: 3 personas. Actualizado: 2026-11-24.
 
 ## Fechas
 | Entrega | Fecha | Estado |
 |---|---|---|
 | 1 | dom 25 oct 23:59 | entregada |
-| 2 | dom 8 nov | en curso |
-| 3 | mar 24 nov (video incluido) | |
+| 2 | dom 8 nov | entregada |
+| 3 | mar 24 nov (video incluido) | reporte, manuales y despliegue listos; video y padlet pendientes |
 
 ## Roles (Entrega 1)
 | Parte | Responsable | Entrega 1 | Después |
@@ -25,8 +25,9 @@ resumen de hallazgos (ver `docs/hallazgos_eda.md`).
 ## Decisión de infraestructura
 - Desarrollo: **local con Docker Compose** (reproducible por los tres).
 - Datos: **remoto DVC compartido** (Google Drive, S3 o DagsHub) para que nadie dependa del PC de otro.
-- Despliegue final: **pendiente de confirmar con los tutores** si basta Docker local o se espera nube
-  (Entrega 3 pide "soportes de los recursos empleados para el despliegue"). Plan B: VM pequeña en nube con el mismo compose.
+- Despliegue final: **AWS EC2 con Docker Compose**. La API y el tablero corren en la instancia `secop-app`
+  (`docs/despliegue_ec2.md`); MLflow corre en otra instancia EC2 (`docs/mlflow_ec2.md`). Al terminar, las instancias se
+  detienen, sin terminarlas.
 
 ## Fase 0: bases (parte 3, hoy)
 - [x] Instalar Docker Desktop, DVC, MLflow (venv del proyecto)
@@ -48,8 +49,16 @@ resumen de hallazgos (ver `docs/hallazgos_eda.md`).
 - [x] Validación temporal 2022-2024, búsqueda corta, selección de variables y prueba en 2025 (`notebooks/02_modelos.ipynb`)
 - [x] Recalibración, explicaciones SHAP y guía para MLflow y el tablero (`docs/modelos.md`)
 - [x] Experimentos registrados en MLflow (EC2) y confirmación de la selección (`src/experimentos.py`, `docs/mlflow_ec2.md`)
-- [ ] Tablero con datos reales y predicciones del modelo
-- [ ] Reporte de 10 páginas y reporte de trabajo en equipo
+- [x] Tablero con datos reales y predicciones del modelo (`app/`, `docs/tablero.md`)
+- [x] Reporte de 10 páginas y reporte de trabajo en equipo
 
 ## Fase 3: Entrega 3 (semanas 6 a 8)
-Empaquetado del modelo, API FastAPI (`/predict`, `/health`), contenedores, despliegue, manuales, video ≤10 min.
+- [x] Ensamble de CatBoost y LightGBM evaluado como nueva versión (experimento 6); se conserva el modelo vigente
+- [x] Seis experimentos, 37 corridas y tres modelos registrados en MLflow sobre EC2 (`docs/seccion_mlflow.md`)
+- [x] Paquete del modelo `secop_obra_modelo` 1.0.0 (`model-pkg/`)
+- [x] API FastAPI con `/health`, `/predict` y `/predict/lote` (`app/api.py`) y sus pruebas (`tests/test_api.py`)
+- [x] Imágenes Docker de la API y el tablero y servicios en `docker-compose.yml`
+- [x] Despliegue en AWS EC2 (`docker/ec2_app.sh`, `docs/despliegue_ec2.md`)
+- [x] Manual de usuario, manual de instalación, reporte final y reporte de trabajo en equipo
+- [ ] Video de máximo 10 minutos con los tres integrantes
+- [ ] Retroalimentación a 4 grupos en el padlet

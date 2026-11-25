@@ -4,9 +4,10 @@ Tablero en Streamlit que implementa el mockup v2 de la Entrega 1. Muestra dónde
 contratos de obra de SECOP II y estima, al momento de la firma, la probabilidad de que un contrato reciba adiciones en
 tiempo o en valor.
 
-En esta entrega el tablero carga los modelos directamente desde `models/` (`app/prediccion.py`). Cuando exista la
-API, basta con definir la variable de entorno `API_URL` para que el tablero le pida las predicciones a ella, sin
-cambiar las vistas.
+El tablero pide las predicciones a la API cuando está definida la variable de entorno `API_URL`. Así corre en el
+despliegue con Docker Compose, con `API_URL=http://api:8000` (`docs/despliegue_ec2.md`). Sin `API_URL`, calcula las
+predicciones con el paquete `secop_obra_modelo` si está instalado (como en la imagen Docker del tablero) o, si no, con
+los modelos de `models/` (`app/prediccion.py`). La barra lateral indica cuál de las tres fuentes usa.
 
 ## 1. Requisitos
 
@@ -48,6 +49,15 @@ streamlit run app\dashboard.py
 
 Se abre en http://localhost:8501. En la barra lateral debe aparecer «Predicciones con modelos locales (models/)».
 
+Para que el tablero use una API en ejecución (local o desplegada), se define `API_URL` antes de abrirlo:
+
+```powershell
+$env:API_URL = "http://localhost:8000"
+streamlit run app\dashboard.py
+```
+
+La barra lateral dice entonces «Predicciones con API en http://localhost:8000».
+
 ## 3. Ejecuciones siguientes
 
 No hay que reinstalar nada:
@@ -66,8 +76,8 @@ Si se actualizan los datos o cambian `src\features.py` o `src\modelo.py`, hay qu
 | Archivo | Contenido |
 | --- | --- |
 | `app/dashboard.py` | Punto de entrada: navegación, filtros globales y estado de los modelos |
-| `app/comun.py` | Carga de datos, filtros, formato en español y estilo |
-| `app/prediccion.py` | Probabilidad, percentil, nivel de alerta y factores SHAP con los modelos de `models/` |
+| `app/comun.py` | Carga de datos, filtros, formato en español, estilo y llamadas a la API cuando hay `API_URL` |
+| `app/prediccion.py` | Probabilidad, percentil, nivel de alerta y factores SHAP sin API: con el paquete `secop_obra_modelo` o con los modelos de `models/` |
 | `app/vistas/panorama.py` | Vista 1, elementos A a F |
 | `app/vistas/evaluar.py` | Vista 2, elementos G a K |
 | `app/vistas/priorizados.py` | Vista 3, lista priorizada |

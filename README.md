@@ -19,7 +19,7 @@ la DIARI de la Contraloría General de la República y las veedurías prioricen 
 | `docs/modelos.md` | Guía de uso de los modelos para MLflow y el tablero |
 | `docs/hallazgos_eda.md` | Hallazgos del EDA, revisiones del mockup e implicaciones para el modelado |
 | `docs/despliegue_ec2.md`, `docker/ec2_app.sh` | Despliegue de la API y el tablero en EC2 con Docker Compose |
-| `docs/evidencia/` | Registro de la indisponibilidad de Contratos Electrónicos en octubre de 2026 |
+| `docs/evidencia/` | Registro de la indisponibilidad de Contratos Electrónicos (octubre de 2026) y capturas del despliegue en EC2 (`despliegue/`) |
 | `reports/figures/` | Figuras que genera el notebook |
 | `data/raw/*.dvc` | Punteros DVC de los datos; los CSV están en DagsHub |
 | `data/processed/`, `models/` | Tabla de modelado y modelos entrenados; se regeneran con `src/` (fuera de Git) |
